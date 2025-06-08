@@ -1,0 +1,21 @@
+{
+  "session_info": {
+    "session_id": "20250608_123955",
+    "start_time": "2025-06-08T12:39:55.119905",
+    "system": "physics-based deepfake detection",
+    "version": "2.0"
+  },
+  "analysis_results": {
+    "total_files_processed": 0,
+    "successful_extractions": 0,
+    "failed_extractions": 0,
+    "physics_features_extracted": [],
+    "key_findings": []
+  },
+  "performance_metrics": {
+    "processing_time_total": 0,
+    "average_time_per_file": 0,
+    "memory_usage_peak": 0,
+    "success_rate_percent": 0
+  }
+}

@@ -13,7 +13,7 @@ import time
 import traceback
 from pathlib import Path
 import pickle
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, Tuple
 import json
 from datetime import datetime
 
@@ -31,6 +31,11 @@ try:
     from utils.security_validator import SecureAudioLoader, ResourceLimiter, InputValidator, SecurityConfig
     from core.batch_processor import BatchProcessor, BatchConfig
     from utils.folder_manager import initialize_project_folders
+    from bayesian.core.bayesian_engine import BayesianDeepfakeEngine, BayesianConfig, BayesianDetectionResult
+    from bayesian.utils.temporal_buffer import TemporalFeatureBuffer
+    from bayesian.utils.user_context import UserContextManager
+    from bayesian.utils.uncertainty_estimation import PhysicsUncertaintyEstimator
+    from bayesian.utils.causal_analysis import CausalFeatureAnalyzer
     print("✓ Enhanced security and batch processing modules loaded")
 except ImportError as e:
     print(f"Import error: {e}")
@@ -317,8 +322,8 @@ async def process_single_file(filepath: str, user_id: str, file_type: str,
     }
     
     try:
-        # Load audio file
-        waveform = await load_audio(filepath, target_sr=settings.audio.sample_rate)
+        # Load audio file (load_audio is not async, returns tuple)
+        waveform, sample_rate = load_audio(filepath, target_sr=settings.audio.sample_rate)
         
         if waveform is None or waveform.numel() == 0:
             result.update({
@@ -330,11 +335,11 @@ async def process_single_file(filepath: str, user_id: str, file_type: str,
             return result
 
         # Calculate audio duration
-        audio_duration = waveform.shape[0] / settings.audio.sample_rate
+        audio_duration = waveform.shape[0] / sample_rate
         result["audio_duration_s"] = audio_duration
         
         # Extract features
-        all_features = await feature_extractor.extract_features(waveform, settings.audio.sample_rate)
+        all_features = await feature_extractor.extract_features(waveform, sample_rate)
         
         # Extract physics features
         physics_dynamics = all_features.get("physics", {})
@@ -1394,5 +1399,4 @@ if __name__ == "__main__":
     
     # Run main pipeline
     asyncio.run(main())
-
 

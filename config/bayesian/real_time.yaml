@@ -1,0 +1,85 @@
+# Real-Time Bayesian Networks Configuration
+# Optimized for speed and low latency
+
+# Core Bayesian Engine Configuration  
+bayesian_engine:
+  enable_temporal_modeling: true
+  enable_hierarchical_modeling: false  # Disabled for speed
+  enable_causal_analysis: false        # Disabled for speed
+  inference_method: "variational"
+  temporal_window_size: 5              # Reduced window size
+  max_inference_time: 1.0              # Fast inference
+  uncertainty_threshold: 0.15          # Higher threshold for faster decisions
+
+# Temporal Modeling Configuration
+temporal_modeling:
+  window_size: 5                       # Smaller window
+  max_history: 10                      # Reduced history
+  consistency_thresholds:
+    delta_fr_revised: 0.6              # Slightly higher thresholds
+    delta_ft_revised: 0.03
+    delta_fv_revised: 0.4
+  transition_probabilities:
+    same_state: 0.8                    # Higher state persistence
+    adjacent_state: 0.18
+    distant_state: 0.02
+
+# Hierarchical Modeling Configuration (Minimal)
+hierarchical_modeling:
+  user_weight: 0.2
+  session_weight: 0.3
+  audio_weight: 0.5                    # Focus on audio features
+  adaptation_rate: 0.05                # Slower adaptation
+  min_samples_for_adaptation: 10
+  user_risk_thresholds:
+    low_risk: 0.75
+    medium_risk: 0.35
+
+# Causal Analysis Configuration (Disabled)
+causal_analysis:
+  enable_interventions: false
+  enable_counterfactuals: false
+
+# Inference Engine Configuration
+inference:
+  variational:
+    max_iterations: 100                # Reduced iterations
+    tolerance: 1e-4                    # Relaxed tolerance
+    learning_rate: 0.05                # Higher learning rate
+    use_gpu: true                      # Use GPU if available
+    structured: false
+
+# Feature Discretization Configuration
+discretization:
+  delta_fr_thresholds: [6.0, 8.0]     # Wider bins for faster classification
+  delta_ft_thresholds: [0.05, 0.1]
+  delta_fv_thresholds: [0.8, 1.8]
+  confidence_thresholds: [0.6, 0.8, 0.9]
+
+# Performance Configuration
+performance:
+  enable_gpu_acceleration: true
+  batch_inference: false               # Process immediately
+  cache_inference_results: false      # No caching overhead
+  parallel_user_processing: false     # Sequential processing
+  max_concurrent_inferences: 1        # Single threaded for consistency
+
+# Validation and Testing Configuration
+validation:
+  cross_validation_folds: 3
+  test_split_ratio: 0.15
+  enable_model_validation: false
+
+# Privacy and Data Management
+privacy:
+  data_retention_days: 7               # Shorter retention
+  anonymize_user_data: true
+  enable_user_deletion: true
+  audit_logging: false                 # Reduced logging
+
+# Logging Configuration
+logging:
+  level: "WARNING"                     # Minimal logging
+  enable_performance_logging: false
+  enable_inference_logging: false
+  log_file: "bayesian_realtime.log" 

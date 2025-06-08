@@ -2,6 +2,7 @@
 """
 Comprehensive Feature Extractor Module
 Fixed version with proper error handling and integration
+Enhanced with Bayesian Networks integration
 """
 
 import torch
@@ -10,9 +11,9 @@ import librosa
 import numpy as np
 from typing import Dict, Any, Tuple, List, Optional
 from interfaces.pipeline_components import FeatureExtractor
-from .audio_utils import normalize_waveform, segment_audio
-from .model_loader import get_hubert_model_and_processor, DEVICE
-from .physics_features import VoiceRadarInspiredDynamics
+from core.audio_utils import normalize_waveform, segment_audio
+from core.model_loader import get_hubert_model_and_processor, DEVICE
+from core.physics_features import VoiceRadarInspiredDynamics
 from utils.config_loader import settings
 import warnings
 import time
@@ -23,6 +24,15 @@ from pathlib import Path
 import logging
 from typing import Callable, Union, TypeVar
 import traceback
+
+# Bayesian Networks integration - conditional import
+try:
+    from bayesian.core.bayesian_engine import BayesianDeepfakeEngine, BayesianConfig
+    from bayesian.utils.bayesian_config_loader import load_bayesian_config
+    BAYESIAN_AVAILABLE = True
+except ImportError:
+    BAYESIAN_AVAILABLE = False
+    logging.warning("Bayesian Networks functionality not available. Install required dependencies for full functionality.")
 
 # Suppress librosa warnings for cleaner output
 warnings.filterwarnings("ignore", category=UserWarning, module="librosa")
@@ -484,14 +494,17 @@ class FeatureCache:
 
 class ComprehensiveFeatureExtractor(FeatureExtractor):
     """
-    Enhanced feature extractor with robust error handling and proper integration.
+    Enhanced feature extractor with robust error handling, proper integration,
+    and Bayesian Networks support for advanced probabilistic analysis.
     """
     
     def __init__(self, enable_cache: bool = True, cache_dir: str = "cache",
                  _model_loader: Optional[Any] = None,
                  _config: Optional[Any] = None,
                  _physics_calculator: Optional[Any] = None,
-                 _device_context: Optional[Any] = None):
+                 _device_context: Optional[Any] = None,
+                 enable_bayesian: bool = True,
+                 bayesian_config_name: str = "default"):
         try:
             # Use injected dependencies or defaults
             if _model_loader is not None:
@@ -508,7 +521,7 @@ class ComprehensiveFeatureExtractor(FeatureExtractor):
                 self.device_context = _device_context
                 target_device = self.device_context.device
             else:
-                from .model_loader import device_context
+                from core.model_loader import device_context
                 self.device_context = device_context
                 target_device = DEVICE
             
@@ -538,7 +551,7 @@ class ComprehensiveFeatureExtractor(FeatureExtractor):
             if _physics_calculator is not None:
                 self.physics_feature_calculator = _physics_calculator
             else:
-                from .physics_features import VoiceRadarInspiredDynamics
+                from core.physics_features import VoiceRadarInspiredDynamics
                 self.physics_feature_calculator = VoiceRadarInspiredDynamics(
                     embedding_dim=hubert_embedding_dim,  # Use actual HuBERT dimension
                     audio_sr=self.config.audio.sample_rate
@@ -548,12 +561,35 @@ class ComprehensiveFeatureExtractor(FeatureExtractor):
             self.audio_cfg = self.config.audio
             
             # Initialize feature cache
-            self.cache = FeatureCache(cache_dir=cache_dir, version="1.2")  # Increment for dependency injection
+            self.cache = FeatureCache(cache_dir=cache_dir, version="1.3")  # Increment for Bayesian support
             self.cache.enabled = enable_cache
             
             # Optional feature flags (for lightweight versions)
             self._enable_physics = getattr(self, '_enable_physics', True)
             self._enable_audio_features = getattr(self, '_enable_audio_features', True)
+            
+            # Initialize Bayesian Networks functionality
+            self.enable_bayesian = enable_bayesian and BAYESIAN_AVAILABLE
+            self.bayesian_engine = None
+            self.temporal_cache = {}  # Cache for temporal sequences
+            
+            if self.enable_bayesian:
+                try:
+                    # Load Bayesian configuration
+                    bayesian_config = load_bayesian_config(bayesian_config_name)
+                    
+                    # Initialize Bayesian engine
+                    self.bayesian_engine = BayesianDeepfakeEngine(bayesian_config)
+                    
+                    print(f"Bayesian Networks enabled with config: {bayesian_config_name}")
+                except Exception as e:
+                    print(f"Failed to initialize Bayesian engine: {e}")
+                    self.enable_bayesian = False
+            else:
+                if not BAYESIAN_AVAILABLE:
+                    print("Bayesian Networks not available - install required dependencies for full functionality")
+                else:
+                    print("Bayesian Networks disabled")
             
             print(f"FeatureExtractor initialized: HuBERT dim={hubert_embedding_dim}, Device={target_device}")
             if enable_cache:
@@ -711,7 +747,7 @@ class ComprehensiveFeatureExtractor(FeatureExtractor):
             processing_mode: Processing mode identifier for cache coordination
             
         Returns:
-            Dictionary containing all extracted features
+            Dictionary containing all extracted features including optional Bayesian analysis
         """
         try:
             # Ensure waveform is 1D
@@ -730,6 +766,16 @@ class ComprehensiveFeatureExtractor(FeatureExtractor):
                 cached_features['_extraction_time'] = 0.0
                 cached_features['_cache_hit'] = True
                 cached_features['_processing_mode'] = processing_mode
+                
+                # Perform Bayesian analysis if enabled (not cached)
+                if self.enable_bayesian and self.bayesian_engine:
+                    bayesian_result = await self._perform_bayesian_analysis(
+                        cached_features.get('physics', {}), 
+                        user_context=None,
+                        audio_metadata={'sample_rate': sr, 'duration': len(normalized_waveform) / sr}
+                    )
+                    cached_features['bayesian_analysis'] = bayesian_result
+                
                 return cached_features
             
             # Phase 1: Run independent feature extractors in parallel
@@ -782,10 +828,54 @@ class ComprehensiveFeatureExtractor(FeatureExtractor):
             if lfcc is not None:
                 all_features['lfcc'] = lfcc
             
+            # Phase 3: Bayesian Analysis (if enabled)
+            if self.enable_bayesian and self.bayesian_engine:
+                try:
+                    bayesian_start = time.time()
+                    print("Starting Bayesian probabilistic analysis...")
+                    
+                    # Get temporal context for user (if available)
+                    temporal_sequence = self.temporal_cache.get('default_user', [])
+                    
+                    # Prepare audio metadata
+                    audio_metadata = {
+                        'sample_rate': sr,
+                        'duration': len(normalized_waveform) / sr,
+                        'channels': 1,
+                        'processing_mode': processing_mode
+                    }
+                    
+                    # Perform comprehensive Bayesian analysis
+                    bayesian_result = await self.bayesian_engine.analyze_audio_probabilistic(
+                        physics_features=physics_features,
+                        temporal_sequence=temporal_sequence,
+                        user_context={'user_id': 'default_user'},
+                        audio_metadata=audio_metadata
+                    )
+                    
+                    all_features['bayesian_analysis'] = bayesian_result
+                    
+                    # Update temporal cache
+                    discretized_features = self.bayesian_engine._discretize_physics_features(physics_features)
+                    self._update_temporal_cache('default_user', discretized_features)
+                    
+                    print(f"Bayesian analysis completed in {time.time() - bayesian_start:.2f}s")
+                    print(f"Spoof probability: {bayesian_result.spoof_probability:.3f}, "
+                          f"Confidence: {bayesian_result.confidence_score:.3f}")
+                
+                except Exception as e:
+                    print(f"Bayesian analysis failed: {e}")
+                    # Continue without Bayesian analysis
+            else:
+                print("Bayesian analysis disabled or unavailable")
+            
             print(f"Total feature extraction completed in {time.time() - start_time:.2f}s")
             
-            # Cache the results with processing mode
-            self.cache.save_features(normalized_waveform, sr, all_features, processing_mode)
+            # Cache the results with processing mode (excluding Bayesian analysis for cache efficiency)
+            cache_features = all_features.copy()
+            if 'bayesian_analysis' in cache_features:
+                del cache_features['bayesian_analysis']  # Don't cache Bayesian results
+            self.cache.save_features(normalized_waveform, sr, cache_features, processing_mode)
             
             return all_features
             
@@ -793,6 +883,80 @@ class ComprehensiveFeatureExtractor(FeatureExtractor):
             print(f"Feature extraction failed: {e}")
             traceback.print_exc()
             raise
+
+    async def _perform_bayesian_analysis(self, 
+                                       physics_features: Dict[str, torch.Tensor],
+                                       user_context: Optional[Dict] = None,
+                                       audio_metadata: Optional[Dict] = None) -> Optional[Any]:
+        """
+        Perform Bayesian probabilistic analysis on physics features
+        
+        Args:
+            physics_features: Extracted physics features
+            user_context: User context information
+            audio_metadata: Audio metadata
+            
+        Returns:
+            Bayesian analysis result or None if failed
+        """
+        if not self.enable_bayesian or not self.bayesian_engine:
+            return None
+        
+        try:
+            # Get temporal sequence for user
+            user_id = user_context.get('user_id', 'default_user') if user_context else 'default_user'
+            temporal_sequence = self.temporal_cache.get(user_id, [])
+            
+            # Perform Bayesian analysis
+            result = await self.bayesian_engine.analyze_audio_probabilistic(
+                physics_features=physics_features,
+                temporal_sequence=temporal_sequence,
+                user_context=user_context,
+                audio_metadata=audio_metadata
+            )
+            
+            # Update temporal cache
+            discretized_features = self.bayesian_engine._discretize_physics_features(physics_features)
+            self._update_temporal_cache(user_id, discretized_features)
+            
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Bayesian analysis failed: {e}")
+            return None
+    
+    def _update_temporal_cache(self, user_id: str, features: Dict[str, Any]):
+        """Update temporal cache for user"""
+        if user_id not in self.temporal_cache:
+            self.temporal_cache[user_id] = []
+        
+        # Add features with timestamp
+        self.temporal_cache[user_id].append({
+            'features': features,
+            'timestamp': time.time()
+        })
+        
+        # Keep only recent history (last 20 samples)
+        if len(self.temporal_cache[user_id]) > 20:
+            self.temporal_cache[user_id] = self.temporal_cache[user_id][-20:]
+    
+    def get_bayesian_insights(self) -> Dict[str, Any]:
+        """Get insights from Bayesian analysis engine"""
+        if not self.enable_bayesian or not self.bayesian_engine:
+            return {'bayesian_available': False}
+        
+        insights = {
+            'bayesian_available': True,
+            'temporal_cache_size': {user_id: len(cache) for user_id, cache in self.temporal_cache.items()},
+            'bayesian_config': {
+                'enable_temporal_modeling': self.bayesian_engine.config.enable_temporal_modeling,
+                'enable_hierarchical_modeling': self.bayesian_engine.config.enable_hierarchical_modeling,
+                'enable_causal_analysis': self.bayesian_engine.config.enable_causal_analysis,
+                'inference_method': self.bayesian_engine.config.inference_method
+            }
+        }
+        
+        return insights
 
 class FeatureExtractorFactory:
     """
@@ -825,7 +989,7 @@ class FeatureExtractorFactory:
         """
         # Import dependencies lazily to avoid circular imports
         if model_loader is None:
-            from .model_loader import get_hubert_model_and_processor
+            from core.model_loader import get_hubert_model_and_processor
             model_loader = get_hubert_model_and_processor
         
         if config is None:
@@ -833,12 +997,12 @@ class FeatureExtractorFactory:
             config = settings
         
         if physics_calculator is None:
-            from .physics_features import VoiceRadarInspiredDynamics
+            from core.physics_features import VoiceRadarInspiredDynamics
             # Will be initialized with correct dimensions later
             physics_calculator = None
         
         if device_context is None:
-            from .model_loader import device_context as default_device_context
+            from core.model_loader import device_context as default_device_context
             device_context = default_device_context
         
         # Create extractor with dependency injection
@@ -868,7 +1032,7 @@ class FeatureExtractorFactory:
         Returns:
             Lightweight ComprehensiveFeatureExtractor instance
         """
-        from .model_loader import device_context
+        from core.model_loader import device_context
         
         if device:
             with device_context.use_device(device):
@@ -955,7 +1119,7 @@ class FeatureExtractorFactory:
         )
 
 if __name__ == '__main__':
-    from .audio_utils import load_audio
+    from core.audio_utils import load_audio
 
     async def main_extractor_test():
         """Test the feature extractor with comprehensive error handling."""

@@ -1,0 +1,111 @@
+# Default Bayesian Networks Configuration
+# Physics-Based Deepfake Detection System
+
+# Core Bayesian Engine Configuration
+bayesian_engine:
+  enable_temporal_modeling: true
+  enable_hierarchical_modeling: true
+  enable_causal_analysis: true
+  inference_method: "variational"  # variational, mcmc, exact
+  temporal_window_size: 10
+  max_inference_time: 5.0
+  uncertainty_threshold: 0.1
+
+# Temporal Modeling Configuration
+temporal_modeling:
+  window_size: 10
+  max_history: 20
+  consistency_thresholds:
+    delta_fr_revised: 0.5   # Rotational dynamics threshold
+    delta_ft_revised: 0.02  # Translational dynamics threshold  
+    delta_fv_revised: 0.3   # Vibrational dynamics threshold
+  transition_probabilities:
+    same_state: 0.7         # Probability of staying in same state
+    adjacent_state: 0.25    # Probability of moving to adjacent state
+    distant_state: 0.05     # Probability of jumping to distant state
+
+# Hierarchical Modeling Configuration
+hierarchical_modeling:
+  user_weight: 0.3          # Weight for user-level evidence
+  session_weight: 0.4       # Weight for session-level evidence
+  audio_weight: 0.3         # Weight for audio-level evidence
+  adaptation_rate: 0.1      # Learning rate for user adaptation
+  min_samples_for_adaptation: 5
+  user_risk_thresholds:
+    low_risk: 0.8           # Threshold for low risk classification
+    medium_risk: 0.4        # Threshold for medium risk classification
+
+# Causal Analysis Configuration
+causal_analysis:
+  enable_interventions: true
+  enable_counterfactuals: true
+  causal_effects:
+    synthesis_algorithm:
+      delta_fr_revised: 0.8   # Strong causal effect on rotational dynamics
+      delta_ft_revised: 0.3   # Moderate effect on translational dynamics
+      delta_fv_revised: 0.4   # Moderate effect on vibrational dynamics
+      authenticity: -0.9      # Strong negative effect on authenticity
+    algorithm_artifacts:
+      delta_fr_revised: 0.7
+      delta_ft_revised: 0.2
+      delta_fv_revised: 0.3
+      authenticity: -0.8
+    temporal_inconsistencies:
+      delta_fr_revised: 0.6
+      delta_ft_revised: 0.5
+      delta_fv_revised: 0.4
+      authenticity: -0.7
+    vocoder_effects:
+      delta_fr_revised: 0.5
+      delta_ft_revised: 0.4
+      delta_fv_revised: 0.6
+      authenticity: -0.6
+
+# Inference Engine Configuration
+inference:
+  variational:
+    max_iterations: 1000
+    tolerance: 1e-6
+    learning_rate: 0.01
+    use_gpu: false
+    structured: false       # Use structured vs mean field variational inference
+  mcmc:
+    num_samples: 1000
+    burn_in: 100
+    thin: 1
+    chains: 4
+
+# Feature Discretization Configuration
+discretization:
+  delta_fr_thresholds: [6.5, 7.5]    # Thresholds for low/medium/high
+  delta_ft_thresholds: [0.06, 0.08]  # Thresholds for translational dynamics
+  delta_fv_thresholds: [1.0, 1.5]    # Thresholds for vibrational dynamics
+  confidence_thresholds: [0.7, 0.85, 0.95]  # Confidence level thresholds
+
+# Performance Configuration
+performance:
+  enable_gpu_acceleration: true
+  batch_inference: true
+  cache_inference_results: true
+  parallel_user_processing: true
+  max_concurrent_inferences: 4
+
+# Validation and Testing Configuration
+validation:
+  cross_validation_folds: 5
+  test_split_ratio: 0.2
+  enable_model_validation: true
+
+# Privacy and Data Management
+privacy:
+  data_retention_days: 30
+  anonymize_user_data: true
+  enable_user_deletion: true
+  audit_logging: true
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  enable_performance_logging: true
+  enable_inference_logging: false  # Detailed inference logs (verbose)
+  log_file: "bayesian_analysis.log" 

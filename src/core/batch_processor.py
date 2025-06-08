@@ -317,15 +317,11 @@ class BatchProcessor:
     async def _load_audio_safe(self, filepath: Path, metadata: Dict) -> Tuple[torch.Tensor, int]:
         """Safely load audio with error handling"""
         try:
-            # Load audio using existing audio utils
-            waveform = await load_audio(str(filepath))
+            # Load audio using existing audio utils (load_audio is not async)
+            waveform, sr = load_audio(str(filepath))
             
             if waveform is None:
                 raise ValueError("Failed to load audio")
-            
-            # Get sample rate from config or default
-            from utils.config_loader import settings
-            sr = settings.audio.sample_rate
             
             # Validate audio
             InputValidator.validate_tensor(waveform, f"audio_{filepath.name}")

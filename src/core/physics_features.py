@@ -1,3 +1,7 @@
+"""
+Enhanced VoiceRadar Physics Features with Comprehensive Error Handling
+"""
+
 import torch
 import torch.nn.functional as F
 import numpy as np

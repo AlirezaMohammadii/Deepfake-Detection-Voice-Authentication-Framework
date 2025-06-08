@@ -1,427 +1,292 @@
 """
-Enhanced Audio Utilities with Comprehensive Error Handling
+Audio Utilities
+Basic audio processing functions for the deepfake detection system
 """
 
-import asyncio
 import torch
-import torchaudio
-import librosa
 import numpy as np
-from pathlib import Path
-from typing import Optional, Union, List
-from utils.config_loader import settings
+from typing import Tuple, List, Optional
 import warnings
 
-# Suppress librosa warnings
-warnings.filterwarnings("ignore", category=UserWarning, module="librosa")
-
-async def load_audio(file_path: Union[str, Path], target_sr: int = settings.audio.sample_rate, 
-                    max_duration: Optional[float] = None) -> Optional[torch.Tensor]:
+def load_audio(file_path: str, target_sr: int = 16000, normalize: bool = True) -> Tuple[torch.Tensor, int]:
     """
-    Asynchronously loads and preprocesses an audio file with comprehensive error handling.
+    Load audio file and return waveform and sample rate
     
     Args:
         file_path: Path to audio file
-        target_sr: Target sample rate
-        max_duration: Maximum duration in seconds (None for no limit)
-    
+        target_sr: Target sample rate (will resample if different)
+        normalize: Whether to normalize the waveform
+        
     Returns:
-        1D torch.Tensor containing the audio waveform, or None if loading failed
+        Tuple of (waveform_tensor, sample_rate)
     """
     try:
-        file_path = Path(file_path)
-        
-        # Check if file exists and is readable
-        if not file_path.exists():
-            print(f"Audio file not found: {file_path}")
-            return None
-        
-        # Check file size
-        file_size_mb = file_path.stat().st_size / (1024 * 1024)
-        if file_size_mb > settings.max_file_size_mb:
-            print(f"Audio file too large: {file_size_mb:.1f}MB > {settings.max_file_size_mb}MB")
-            return None
-        
-        # Check file extension
-        if file_path.suffix.lower() not in settings.supported_audio_formats:
-            print(f"Unsupported audio format: {file_path.suffix}")
-            return None
+        import torchaudio
         
         # Load audio file
-        try:
-            waveform, sr = await asyncio.to_thread(torchaudio.load, str(file_path))
-        except Exception as e:
-            # Fallback to librosa for problematic files
-            print(f"torchaudio failed, trying librosa: {e}")
-            try:
-                waveform_np, sr = await asyncio.to_thread(
-                    librosa.load, str(file_path), sr=None, mono=False
-                )
-                # Convert to torch tensor
-                if waveform_np.ndim == 1:
-                    waveform = torch.from_numpy(waveform_np).unsqueeze(0)
-                else:
-                    waveform = torch.from_numpy(waveform_np)
-            except Exception as e2:
-                print(f"Both torchaudio and librosa failed: {e2}")
-                return None
+        waveform, original_sr = torchaudio.load(file_path)
         
-        # Validate loaded audio
-        if waveform is None or waveform.numel() == 0:
-            print(f"Empty or invalid audio loaded from {file_path}")
-            return None
-        
-        # Handle stereo to mono conversion
-        if waveform.ndim > 1 and waveform.shape[0] > 1:
-            # Convert stereo to mono by averaging channels
+        # Convert to mono if stereo
+        if waveform.shape[0] > 1:
             waveform = torch.mean(waveform, dim=0, keepdim=True)
         
-        # Ensure 1D tensor
-        waveform = waveform.squeeze()
-        if waveform.ndim == 0:  # Scalar case
-            print(f"Audio reduced to scalar, invalid: {file_path}")
-            return None
-        
         # Resample if necessary
-        if sr != target_sr:
-            try:
-                resampler = torchaudio.transforms.Resample(
-                    orig_freq=sr, new_freq=target_sr
-                )
-                waveform = resampler(waveform)
-            except Exception as e:
-                print(f"Resampling failed: {e}")
-                # Fallback to librosa resampling
-                try:
-                    waveform_np = waveform.numpy()
-                    waveform_resampled = await asyncio.to_thread(
-                        librosa.resample, waveform_np, orig_sr=sr, target_sr=target_sr
-                    )
-                    waveform = torch.from_numpy(waveform_resampled)
-                except Exception as e2:
-                    print(f"Librosa resampling also failed: {e2}")
-                    return None
+        if original_sr != target_sr:
+            resampler = torchaudio.transforms.Resample(orig_freq=original_sr, new_freq=target_sr)
+            waveform = resampler(waveform)
         
-        # Trim to maximum duration if specified
-        if max_duration is not None:
-            max_samples = int(max_duration * target_sr)
-            if waveform.shape[0] > max_samples:
-                waveform = waveform[:max_samples]
+        # Squeeze to 1D
+        waveform = waveform.squeeze(0)
         
-        # Validate final waveform
-        if torch.isnan(waveform).any() or torch.isinf(waveform).any():
-            print(f"Audio contains NaN or Inf values: {file_path}")
-            # Try to clean the audio
-            waveform = torch.nan_to_num(waveform, nan=0.0, posinf=1.0, neginf=-1.0)
+        # Normalize if requested
+        if normalize:
+            waveform = normalize_waveform(waveform)
         
-        # Check for reasonable amplitude range
-        max_amp = torch.max(torch.abs(waveform))
-        if max_amp > 100:  # Likely integer audio that should be normalized
-            waveform = waveform / max_amp
-        elif max_amp < 1e-6:  # Very quiet audio
-            print(f"Warning: Very quiet audio detected: {file_path}")
+        return waveform, target_sr
         
-        return waveform.float()
+    except ImportError:
+        # Fallback using librosa if torchaudio not available
+        try:
+            import librosa
+            
+            waveform_np, sr = librosa.load(file_path, sr=target_sr, mono=True)
+            waveform = torch.from_numpy(waveform_np).float()
+            
+            if normalize:
+                waveform = normalize_waveform(waveform)
+            
+            return waveform, sr
+            
+        except ImportError:
+            raise ImportError("Either torchaudio or librosa is required for audio loading")
         
     except Exception as e:
-        print(f"Unexpected error loading audio {file_path}: {e}")
-        return None
+        raise RuntimeError(f"Failed to load audio file {file_path}: {e}")
 
-def normalize_waveform(waveform: torch.Tensor, method: str = 'zscore') -> torch.Tensor:
+def normalize_waveform(waveform: torch.Tensor, method: str = "peak") -> torch.Tensor:
     """
-    Normalizes waveform using various methods.
+    Normalize audio waveform
     
     Args:
         waveform: Input waveform tensor
-        method: Normalization method ('zscore', 'minmax', 'rms', 'peak')
-    
+        method: Normalization method ("peak", "rms", or "lufs")
+        
     Returns:
         Normalized waveform tensor
     """
     if waveform.numel() == 0:
         return waveform
     
-    try:
-        if method == 'zscore':
-            # Z-score normalization (zero mean, unit variance)
-            mean = waveform.mean()
-            std = waveform.std()
-            if std < 1e-8:  # Avoid division by zero
-                return torch.zeros_like(waveform)
-            return (waveform - mean) / std
-            
-        elif method == 'minmax':
-            # Min-max normalization to [-1, 1]
-            min_val = waveform.min()
-            max_val = waveform.max()
-            if abs(max_val - min_val) < 1e-8:
-                return torch.zeros_like(waveform)
-            return 2 * (waveform - min_val) / (max_val - min_val) - 1
-            
-        elif method == 'rms':
-            # RMS normalization
-            rms = torch.sqrt(torch.mean(waveform**2))
-            if rms < 1e-8:
-                return torch.zeros_like(waveform)
-            return waveform / rms
-            
-        elif method == 'peak':
-            # Peak normalization
-            peak = torch.max(torch.abs(waveform))
-            if peak < 1e-8:
-                return torch.zeros_like(waveform)
-            return waveform / peak
-            
-        else:
-            print(f"Unknown normalization method: {method}, using zscore")
-            return normalize_waveform(waveform, 'zscore')
-            
-    except Exception as e:
-        print(f"Error in waveform normalization: {e}")
+    if method == "peak":
+        # Peak normalization
+        max_val = torch.abs(waveform).max()
+        if max_val > 0:
+            return waveform / max_val
         return waveform
+    
+    elif method == "rms":
+        # RMS normalization
+        rms = torch.sqrt(torch.mean(waveform ** 2))
+        if rms > 0:
+            return waveform / rms
+        return waveform
+    
+    else:
+        # Default to peak normalization
+        return normalize_waveform(waveform, "peak")
 
-def segment_audio(waveform: torch.Tensor, segment_duration_s: float, 
-                 sr: int, overlap: float = 0.0, 
-                 pad_last: bool = True) -> List[torch.Tensor]:
+def segment_audio(waveform: torch.Tensor, sr: int, 
+                 segment_length: float = 10.0, 
+                 overlap: float = 0.0) -> List[torch.Tensor]:
     """
-    Segments audio into fixed duration chunks with optional overlap.
+    Segment audio into chunks
     
     Args:
-        waveform: Input waveform [samples]
-        segment_duration_s: Segment duration in seconds
+        waveform: Input waveform tensor [samples] or [channels, samples]
         sr: Sample rate
-        overlap: Overlap ratio (0.0 = no overlap, 0.5 = 50% overlap)
-        pad_last: Whether to pad the last segment if it's shorter
-    
+        segment_length: Length of each segment in seconds
+        overlap: Overlap between segments (0.0 to 1.0)
+        
     Returns:
         List of audio segments
     """
-    if waveform.numel() == 0:
-        return []
+    if waveform.ndim == 1:
+        waveform = waveform.unsqueeze(0)  # Add channel dimension
     
-    try:
-        segment_length = int(segment_duration_s * sr)
-        if segment_length <= 0:
-            print(f"Invalid segment length: {segment_length}")
-            return [waveform]
-        
-        # Calculate hop size based on overlap
-        hop_size = int(segment_length * (1 - overlap))
-        if hop_size <= 0:
-            hop_size = 1
-        
-        segments = []
-        start = 0
-        
-        while start < len(waveform):
-            end = start + segment_length
-            
-            if end <= len(waveform):
-                # Full segment
-                segments.append(waveform[start:end])
-            else:
-                # Last segment (potentially shorter)
-                last_segment = waveform[start:]
-                
-                if pad_last and len(last_segment) < segment_length:
-                    # Pad with zeros or repeat the last part
-                    padding_needed = segment_length - len(last_segment)
-                    if len(last_segment) > padding_needed:
-                        # Repeat the end of the segment
-                        pad_segment = last_segment[-padding_needed:]
-                    else:
-                        # Zero padding
-                        pad_segment = torch.zeros(padding_needed, dtype=waveform.dtype)
-                    
-                    last_segment = torch.cat([last_segment, pad_segment])
-                
-                segments.append(last_segment)
-                break
-            
-            start += hop_size
-        
-        return segments
-        
-    except Exception as e:
-        print(f"Error in audio segmentation: {e}")
-        return [waveform]
+    channels, total_samples = waveform.shape
+    segment_samples = int(segment_length * sr)
+    
+    if total_samples <= segment_samples:
+        return [waveform.squeeze(0)]
+    
+    hop_samples = int(segment_samples * (1 - overlap))
+    segments = []
+    
+    start = 0
+    while start + segment_samples <= total_samples:
+        segment = waveform[:, start:start + segment_samples]
+        segments.append(segment.squeeze(0))
+        start += hop_samples
+    
+    # Add final segment if there's remaining audio
+    if start < total_samples:
+        final_segment = waveform[:, start:]
+        # Pad if necessary
+        if final_segment.shape[1] < segment_samples:
+            padding = segment_samples - final_segment.shape[1]
+            final_segment = torch.nn.functional.pad(final_segment, (0, padding))
+        segments.append(final_segment.squeeze(0))
+    
+    return segments
 
-def apply_audio_augmentation(waveform: torch.Tensor, sr: int, 
-                           augment_type: str = 'none') -> torch.Tensor:
+def resample_audio(waveform: torch.Tensor, orig_sr: int, target_sr: int) -> torch.Tensor:
     """
-    Apply audio augmentation techniques.
+    Simple resampling using linear interpolation
     
     Args:
         waveform: Input waveform
-        sr: Sample rate
-        augment_type: Type of augmentation ('none', 'noise', 'pitch', 'tempo', 'all')
-    
+        orig_sr: Original sample rate
+        target_sr: Target sample rate
+        
     Returns:
-        Augmented waveform
+        Resampled waveform
     """
-    if augment_type == 'none' or waveform.numel() == 0:
+    if orig_sr == target_sr:
         return waveform
     
-    try:
-        augmented = waveform.clone()
-        
-        if augment_type in ['noise', 'all']:
-            # Add subtle noise
-            noise_level = 0.005 * torch.max(torch.abs(augmented))
-            noise = torch.randn_like(augmented) * noise_level
-            augmented = augmented + noise
-        
-        if augment_type in ['pitch', 'all']:
-            # Pitch shifting (requires librosa)
-            try:
-                augmented_np = augmented.numpy()
-                # Random pitch shift of ±2 semitones
-                n_steps = np.random.uniform(-2, 2)
-                augmented_np = librosa.effects.pitch_shift(
-                    augmented_np, sr=sr, n_steps=n_steps
-                )
-                augmented = torch.from_numpy(augmented_np)
-            except Exception:
-                pass  # Skip pitch shifting if librosa fails
-        
-        if augment_type in ['tempo', 'all']:
-            # Time stretching
-            try:
-                augmented_np = augmented.numpy()
-                # Random tempo change of ±10%
-                rate = np.random.uniform(0.9, 1.1)
-                augmented_np = librosa.effects.time_stretch(augmented_np, rate=rate)
-                augmented = torch.from_numpy(augmented_np)
-            except Exception:
-                pass  # Skip tempo change if librosa fails
-        
-        return augmented.float()
-        
-    except Exception as e:
-        print(f"Error in audio augmentation: {e}")
-        return waveform
+    # Simple linear interpolation resampling
+    ratio = target_sr / orig_sr
+    new_length = int(waveform.shape[-1] * ratio)
+    
+    # Use torch's interpolation
+    if waveform.ndim == 1:
+        waveform = waveform.unsqueeze(0).unsqueeze(0)  # [1, 1, samples]
+        resampled = torch.nn.functional.interpolate(
+            waveform, size=new_length, mode='linear', align_corners=False
+        )
+        return resampled.squeeze(0).squeeze(0)
+    else:
+        waveform = waveform.unsqueeze(0)  # [1, channels, samples]
+        resampled = torch.nn.functional.interpolate(
+            waveform, size=new_length, mode='linear', align_corners=False
+        )
+        return resampled.squeeze(0)
 
-def detect_audio_properties(waveform: torch.Tensor, sr: int) -> dict:
+def apply_preemphasis(waveform: torch.Tensor, coeff: float = 0.97) -> torch.Tensor:
     """
-    Detect various properties of an audio signal.
+    Apply preemphasis filter to audio
     
     Args:
         waveform: Input waveform
-        sr: Sample rate
-    
+        coeff: Preemphasis coefficient
+        
     Returns:
-        Dictionary of audio properties
+        Filtered waveform
+    """
+    if waveform.numel() <= 1:
+        return waveform
+    
+    # Apply preemphasis: y[n] = x[n] - coeff * x[n-1]
+    filtered = waveform.clone()
+    filtered[1:] = waveform[1:] - coeff * waveform[:-1]
+    
+    return filtered
+
+def remove_dc_offset(waveform: torch.Tensor) -> torch.Tensor:
+    """
+    Remove DC offset from audio
+    
+    Args:
+        waveform: Input waveform
+        
+    Returns:
+        DC-corrected waveform
+    """
+    return waveform - torch.mean(waveform)
+
+def detect_silence(waveform: torch.Tensor, threshold: float = 0.01, 
+                  min_duration: float = 0.1, sr: int = 16000) -> List[Tuple[int, int]]:
+    """
+    Detect silent regions in audio
+    
+    Args:
+        waveform: Input waveform
+        threshold: Silence threshold (relative to peak)
+        min_duration: Minimum silence duration in seconds
+        sr: Sample rate
+        
+    Returns:
+        List of (start, end) sample indices for silent regions
+    """
+    # Calculate energy
+    energy = waveform ** 2
+    
+    # Smooth energy with moving average
+    window_size = int(0.025 * sr)  # 25ms window
+    if window_size > 1:
+        kernel = torch.ones(window_size) / window_size
+        energy = torch.nn.functional.conv1d(
+            energy.unsqueeze(0).unsqueeze(0), 
+            kernel.unsqueeze(0).unsqueeze(0), 
+            padding=window_size//2
+        ).squeeze()
+    
+    # Find silent regions
+    peak_energy = torch.max(energy)
+    silence_mask = energy < (threshold * peak_energy)
+    
+    # Find contiguous silent regions
+    silent_regions = []
+    in_silence = False
+    start_idx = 0
+    min_samples = int(min_duration * sr)
+    
+    for i, is_silent in enumerate(silence_mask):
+        if is_silent and not in_silence:
+            start_idx = i
+            in_silence = True
+        elif not is_silent and in_silence:
+            if i - start_idx >= min_samples:
+                silent_regions.append((start_idx, i))
+            in_silence = False
+    
+    # Handle case where audio ends in silence
+    if in_silence and len(silence_mask) - start_idx >= min_samples:
+        silent_regions.append((start_idx, len(silence_mask)))
+    
+    return silent_regions
+
+def trim_silence(waveform: torch.Tensor, threshold: float = 0.01, sr: int = 16000) -> torch.Tensor:
+    """
+    Trim silence from beginning and end of audio
+    
+    Args:
+        waveform: Input waveform
+        threshold: Silence threshold
+        sr: Sample rate
+        
+    Returns:
+        Trimmed waveform
     """
     if waveform.numel() == 0:
-        return {}
+        return waveform
     
-    try:
-        properties = {}
-        
-        # Basic properties
-        properties['duration_s'] = len(waveform) / sr
-        properties['sample_rate'] = sr
-        properties['num_samples'] = len(waveform)
-        
-        # Amplitude properties
-        properties['rms'] = torch.sqrt(torch.mean(waveform**2)).item()
-        properties['peak'] = torch.max(torch.abs(waveform)).item()
-        properties['dynamic_range_db'] = 20 * np.log10(properties['peak'] / (properties['rms'] + 1e-8))
-        
-        # Spectral properties
-        try:
-            # Use librosa for spectral analysis
-            waveform_np = waveform.numpy()
-            
-            # Spectral centroid
-            spectral_centroids = librosa.feature.spectral_centroid(y=waveform_np, sr=sr)
-            properties['spectral_centroid_mean'] = np.mean(spectral_centroids)
-            
-            # Zero crossing rate
-            zcr = librosa.feature.zero_crossing_rate(waveform_np)
-            properties['zero_crossing_rate_mean'] = np.mean(zcr)
-            
-            # Spectral rolloff
-            rolloff = librosa.feature.spectral_rolloff(y=waveform_np, sr=sr)
-            properties['spectral_rolloff_mean'] = np.mean(rolloff)
-            
-        except Exception:
-            # Fallback to simple properties if librosa fails
-            properties['spectral_centroid_mean'] = 0.0
-            properties['zero_crossing_rate_mean'] = 0.0
-            properties['spectral_rolloff_mean'] = 0.0
-        
-        # Silence detection
-        silence_threshold = 0.01 * properties['peak']
-        silence_mask = torch.abs(waveform) < silence_threshold
-        properties['silence_ratio'] = silence_mask.float().mean().item()
-        
-        return properties
-        
-    except Exception as e:
-        print(f"Error in audio property detection: {e}")
-        return {}
+    # Find non-silent regions
+    energy = waveform ** 2
+    peak_energy = torch.max(energy)
+    non_silent_mask = energy >= (threshold * peak_energy)
+    
+    # Find first and last non-silent samples
+    non_silent_indices = torch.where(non_silent_mask)[0]
+    
+    if len(non_silent_indices) == 0:
+        # All silence - return a small segment
+        return waveform[:min(1000, len(waveform))]
+    
+    start_idx = non_silent_indices[0].item()
+    end_idx = non_silent_indices[-1].item() + 1
+    
+    return waveform[start_idx:end_idx]
 
-if __name__ == '__main__':
-    import asyncio
+
     
-    async def test_audio_utils():
-        """Test audio utilities with comprehensive examples."""
-        print("Testing Enhanced Audio Utilities")
-        print("=" * 40)
-        
-        # Create test audio files
-        test_sr = 16000
-        test_duration = 3.0
-        
-        # Create different types of test audio
-        test_cases = {
-            'sine_wave': torch.sin(2 * torch.pi * 440 * torch.linspace(0, test_duration, int(test_sr * test_duration))),
-            'white_noise': torch.randn(int(test_sr * test_duration)) * 0.1,
-            'chirp': torch.sin(2 * torch.pi * torch.linspace(100, 1000, int(test_sr * test_duration)) * torch.linspace(0, test_duration, int(test_sr * test_duration)))
-        }
-        
-        for test_name, test_waveform in test_cases.items():
-            print(f"\nTesting with {test_name}:")
-            print(f"  Original shape: {test_waveform.shape}")
-            
-            # Test normalization methods
-            for norm_method in ['zscore', 'minmax', 'rms', 'peak']:
-                normalized = normalize_waveform(test_waveform, norm_method)
-                print(f"  {norm_method} normalized - mean: {normalized.mean():.4f}, std: {normalized.std():.4f}")
-            
-            # Test segmentation
-            segments = segment_audio(test_waveform, 1.0, test_sr, overlap=0.5)
-            print(f"  Segmentation (1s, 50% overlap): {len(segments)} segments")
-            
-            # Test audio properties
-            properties = detect_audio_properties(test_waveform, test_sr)
-            print(f"  Properties: RMS={properties.get('rms', 0):.4f}, Peak={properties.get('peak', 0):.4f}")
-            print(f"  Spectral centroid: {properties.get('spectral_centroid_mean', 0):.1f} Hz")
-            
-            # Test augmentation
-            augmented = apply_audio_augmentation(test_waveform, test_sr, 'noise')
-            print(f"  Augmented shape: {augmented.shape}")
-        
-        # Test file loading (if dummy file exists)
-        try:
-            # Create a dummy wav file for testing
-            dummy_path = "test_audio.wav"
-            torchaudio.save(dummy_path, test_cases['sine_wave'].unsqueeze(0), test_sr)
-            
-            loaded_audio = await load_audio(dummy_path, test_sr)
-            if loaded_audio is not None:
-                print(f"\nFile loading test successful: {loaded_audio.shape}")
-            else:
-                print(f"\nFile loading test failed")
-                
-            # Clean up
-            import os
-            if os.path.exists(dummy_path):
-                os.remove(dummy_path)
-                
-        except Exception as e:
-            print(f"\nFile loading test error: {e}")
-    
-    # Run tests
-    asyncio.run(test_audio_utils())
