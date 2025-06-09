@@ -110,8 +110,50 @@ class AdvancedPhysicsPlotter:
             
             # Ensure proper data types
             physics_cols = [col for col in df.columns if col.startswith('physics_')]
+            
+            # Function to convert tensor values and other formats to numeric
+            def convert_tensor_to_numeric(val):
+                """Convert tensor values and other formats to numeric"""
+                if val is None or pd.isna(val):
+                    return float('nan')
+                
+                # Handle tensor objects
+                if hasattr(val, 'item'):  # PyTorch tensor
+                    return float(val.item())
+                elif hasattr(val, 'numpy'):  # NumPy array or other array-like
+                    return float(val.numpy() if hasattr(val, 'numpy') else val)
+                
+                # Handle string representations of tensors
+                if isinstance(val, str):
+                    # Extract numeric value from tensor string
+                    if 'tensor(' in val:
+                        import re
+                        matches = re.findall(r'tensor\(([0-9.e-]+)\)', val)
+                        if matches:
+                            return float(matches[0])
+                    # Try direct conversion
+                    try:
+                        return float(val)
+                    except (ValueError, TypeError):
+                        return float('nan')
+                
+                # Handle direct numeric values
+                try:
+                    return float(val)
+                except (ValueError, TypeError):
+                    return float('nan')
+            
+            # Apply tensor conversion to physics columns
             for col in physics_cols:
-                df[col] = pd.to_numeric(df[col], errors='coerce')
+                df[col] = df[col].apply(convert_tensor_to_numeric)
+            
+            # Also handle other potentially problematic columns
+            numeric_cols = ['audio_duration_s', 'processing_time', 'hubert_seq_len_frames', 
+                           'hubert_embedding_dim'] + [col for col in df.columns if col.startswith('bayesian_')]
+            
+            for col in numeric_cols:
+                if col in df.columns:
+                    df[col] = pd.to_numeric(df[col], errors='coerce')
             
             # Filter only successful results
             df_success = df[df['status'] == 'success'].copy()
@@ -119,10 +161,20 @@ class AdvancedPhysicsPlotter:
             print(f"✓ Loaded {len(df)} total samples, {len(df_success)} successful")
             print(f"✓ File types: {df_success['file_type'].value_counts().to_dict()}")
             
+            # Check if we have valid physics data
+            physics_data_summary = {}
+            for col in physics_cols:
+                valid_count = df_success[col].notna().sum()
+                physics_data_summary[col] = valid_count
+            
+            print(f"✓ Physics features validity: {physics_data_summary}")
+            
             return df_success
             
         except Exception as e:
             print(f"❌ Error loading data: {e}")
+            import traceback
+            traceback.print_exc()
             return pd.DataFrame()
     
     def create_enhanced_dashboard(self, df: pd.DataFrame) -> str:
@@ -278,82 +330,171 @@ class AdvancedPhysicsPlotter:
         significance_levels = []
         
         for col in physics_cols:
-            genuine_data = df[df['file_type'] == 'genuine'][col]
-            deepfake_data = df[df['file_type'] == 'deepfake_tts'][col]
+            genuine_data = df[df['file_type'] == 'genuine'][col].dropna()
+            deepfake_data = df[df['file_type'] == 'deepfake_tts'][col].dropna()
             
-            if len(genuine_data) > 0 and len(deepfake_data) > 0:
-                _, p_val = stats.ttest_ind(genuine_data, deepfake_data)
-                effect_size = abs(genuine_data.mean() - deepfake_data.mean()) / np.sqrt(
-                    ((len(genuine_data) - 1) * genuine_data.var() + 
-                     (len(deepfake_data) - 1) * deepfake_data.var()) / 
-                    (len(genuine_data) + len(deepfake_data) - 2)
-                )
-                
-                p_values.append(-np.log10(p_val))
-                feature_names.append(col.split('_')[-2])
-                effect_sizes.append(effect_size)
-                
-                # Determine significance level
-                if p_val < 0.001:
-                    significance_levels.append('***')
-                elif p_val < 0.01:
-                    significance_levels.append('**')
-                elif p_val < 0.05:
-                    significance_levels.append('*')
-                elif p_val < 0.1:
-                    significance_levels.append('†')
-                else:
-                    significance_levels.append('ns')
+            if len(genuine_data) > 1 and len(deepfake_data) > 1:  # Need at least 2 samples for t-test
+                try:
+                    # Check for valid data
+                    if (genuine_data.var() > 0 or deepfake_data.var() > 0):  # At least one group has variance
+                        _, p_val = stats.ttest_ind(genuine_data, deepfake_data)
+                        
+                        # Calculate effect size (Cohen's d)
+                        pooled_std = np.sqrt(
+                            ((len(genuine_data) - 1) * genuine_data.var() + 
+                             (len(deepfake_data) - 1) * deepfake_data.var()) / 
+                            (len(genuine_data) + len(deepfake_data) - 2)
+                        )
+                        
+                        if pooled_std > 0:
+                            effect_size = abs(genuine_data.mean() - deepfake_data.mean()) / pooled_std
+                        else:
+                            effect_size = 0
+                        
+                        # Check for valid p-value
+                        if not np.isnan(p_val) and p_val > 0:
+                            p_values.append(-np.log10(p_val))
+                            feature_names.append(col.split('_')[-2])
+                            effect_sizes.append(effect_size)
+                            
+                            # Determine significance level
+                            if p_val < 0.001:
+                                significance_levels.append('***')
+                            elif p_val < 0.01:
+                                significance_levels.append('**')
+                            elif p_val < 0.05:
+                                significance_levels.append('*')
+                            elif p_val < 0.1:
+                                significance_levels.append('†')
+                            else:
+                                significance_levels.append('ns')
+                        else:
+                            print(f"   ⚠️  Invalid p-value for {col}: {p_val}")
+                    else:
+                        print(f"   ⚠️  No variance in data for {col}")
+                except Exception as e:
+                    print(f"   ⚠️  Error in statistical test for {col}: {e}")
+            else:
+                print(f"   ⚠️  Insufficient samples for {col}: genuine={len(genuine_data)}, deepfake={len(deepfake_data)}")
         
-        # Add significance bar chart
-        colors_significance = ['#e74c3c' if p > 1.3 else '#f39c12' if p > 1 else '#95a5a6' for p in p_values]
-        fig.add_trace(
-            go.Bar(
-                x=feature_names,
-                y=p_values,
-                marker_color=colors_significance,
-                name='Statistical Significance',
-                text=[f'p={10**(-p):.3f}<br>{sig}' for p, sig in zip(p_values, significance_levels)],
-                textposition='outside',
-                hovertemplate="<b>%{x}</b><br>" +
-                            "-log10(p-value): %{y:.2f}<br>" +
-                            "Significance: %{text}<br>" +
-                            "<extra></extra>",
-                showlegend=False
-            ),
-            row=3, col=1
-        )
+        # Add significance bar chart only if we have valid data
+        if p_values and feature_names:
+            colors_significance = ['#e74c3c' if p > 1.3 else '#f39c12' if p > 1 else '#95a5a6' for p in p_values]
+            fig.add_trace(
+                go.Bar(
+                    x=feature_names,
+                    y=p_values,
+                    marker_color=colors_significance,
+                    name='Statistical Significance',
+                    text=[f'p={10**(-p):.3f}<br>{sig}' for p, sig in zip(p_values, significance_levels)],
+                    textposition='outside',
+                    hovertemplate="<b>%{x}</b><br>" +
+                                "-log10(p-value): %{y:.2f}<br>" +
+                                "Significance: %{text}<br>" +
+                                "<extra></extra>",
+                    showlegend=False
+                ),
+                row=3, col=1
+            )
+        else:
+            # Add placeholder if no statistical analysis available
+            fig.add_annotation(
+                text="Statistical analysis<br>unavailable due to<br>insufficient valid data",
+                xref="x7", yref="y7",
+                x=0.5, y=0.5,
+                showarrow=False,
+                font=dict(size=12, color="orange"),
+                row=3, col=1
+            )
         
         # 8. Enhanced 2D PCA visualization
         if len(physics_cols) >= 2:
-            scaler = StandardScaler()
-            pca = PCA(n_components=2)
+            # Prepare data for PCA by handling NaN values
+            pca_data = df[physics_cols].copy()
             
-            features_scaled = scaler.fit_transform(df[physics_cols])
-            pca_result = pca.fit_transform(features_scaled)
+            # Check for NaN values and handle them
+            if pca_data.isnull().any().any():
+                print("⚠️  Found NaN values in physics features, handling them for PCA...")
+                
+                # Option 1: Drop rows with any NaN values
+                pca_data_clean = pca_data.dropna()
+                df_pca = df.loc[pca_data_clean.index].copy()
+                
+                # If too many rows would be dropped, use imputation instead
+                if len(pca_data_clean) < len(pca_data) * 0.5:  # Less than 50% of data would remain
+                    print("   Using mean imputation for missing values...")
+                    from sklearn.impute import SimpleImputer
+                    imputer = SimpleImputer(strategy='mean')
+                    pca_data_clean = pd.DataFrame(
+                        imputer.fit_transform(pca_data),
+                        index=pca_data.index,
+                        columns=pca_data.columns
+                    )
+                    df_pca = df.copy()
+                else:
+                    print(f"   Dropped {len(pca_data) - len(pca_data_clean)} rows with NaN values...")
+            else:
+                pca_data_clean = pca_data
+                df_pca = df.copy()
             
-            explained_variance = pca.explained_variance_ratio_
-            
-            for file_type in df['file_type'].unique():
-                mask = df['file_type'] == file_type
-                fig.add_trace(
-                    go.Scatter(
-                        x=pca_result[mask, 0],
-                        y=pca_result[mask, 1],
-                        mode='markers',
-                        name=f"{file_type.replace('_', ' ').title()}",
-                        marker=dict(
-                            color=self.colors.get(file_type, '#1f77b4'),
-                            size=12,
-                            opacity=0.7,
-                            line=dict(width=2, color='white')
-                        ),
-                        showlegend=False,
-                        hovertemplate=f"<b>{file_type}</b><br>" +
-                                    f"PC1: %{{x:.3f}}<br>" +
-                                    f"PC2: %{{y:.3f}}<br>" +
-                                    f"<extra></extra>"
-                    ),
+            # Only proceed with PCA if we have sufficient data
+            if len(pca_data_clean) >= 2 and len(pca_data_clean.columns) >= 2:
+                try:
+                    scaler = StandardScaler()
+                    pca = PCA(n_components=2)
+                    
+                    features_scaled = scaler.fit_transform(pca_data_clean)
+                    pca_result = pca.fit_transform(features_scaled)
+                    
+                    explained_variance = pca.explained_variance_ratio_
+                    
+                    for file_type in df_pca['file_type'].unique():
+                        mask = df_pca['file_type'] == file_type
+                        # Only use the mask indices that exist in our cleaned data
+                        pca_mask = mask.loc[pca_data_clean.index] if len(pca_data_clean) < len(df) else mask
+                        
+                        if pca_mask.sum() > 0:  # Only plot if we have data for this file type
+                            fig.add_trace(
+                                go.Scatter(
+                                    x=pca_result[pca_mask, 0],
+                                    y=pca_result[pca_mask, 1],
+                                    mode='markers',
+                                    name=f"{file_type.replace('_', ' ').title()}",
+                                    marker=dict(
+                                        color=self.colors.get(file_type, '#1f77b4'),
+                                        size=12,
+                                        opacity=0.7,
+                                        line=dict(width=2, color='white')
+                                    ),
+                                    showlegend=False,
+                                    hovertemplate=f"<b>{file_type}</b><br>" +
+                                                f"PC1: %{{x:.3f}}<br>" +
+                                                f"PC2: %{{y:.3f}}<br>" +
+                                                f"Explained variance: {explained_variance[0]:.2%} + {explained_variance[1]:.2%}<br>" +
+                                                f"<extra></extra>"
+                                ),
+                                row=3, col=2
+                            )
+                except Exception as pca_error:
+                    print(f"   ⚠️  PCA visualization failed: {pca_error}")
+                    # Add a placeholder message
+                    fig.add_annotation(
+                        text="PCA visualization<br>unavailable due to<br>data quality issues",
+                        xref="x4", yref="y4",
+                        x=0.5, y=0.5,
+                        showarrow=False,
+                        font=dict(size=14, color="red"),
+                        row=3, col=2
+                    )
+            else:
+                print(f"   ⚠️  Insufficient data for PCA: {len(pca_data_clean)} samples")
+                # Add a placeholder message
+                fig.add_annotation(
+                    text="PCA visualization<br>requires more data<br>points",
+                    xref="x4", yref="y4", 
+                    x=0.5, y=0.5,
+                    showarrow=False,
+                    font=dict(size=14, color="orange"),
                     row=3, col=2
                 )
         
@@ -425,34 +566,64 @@ class AdvancedPhysicsPlotter:
         feature_labels = []
         
         for col in physics_cols:
-            genuine_data = df[df['file_type'] == 'genuine'][col]
-            deepfake_data = df[df['file_type'] == 'deepfake_tts'][col]
+            genuine_data = df[df['file_type'] == 'genuine'][col].dropna()
+            deepfake_data = df[df['file_type'] == 'deepfake_tts'][col].dropna()
             
             if len(genuine_data) > 0 and len(deepfake_data) > 0:
-                # Calculate discrimination potential
-                mean_diff = abs(genuine_data.mean() - deepfake_data.mean())
-                pooled_std = np.sqrt((genuine_data.var() + deepfake_data.var()) / 2)
-                discrimination = mean_diff / pooled_std
-                
-                discrimination_scores.append(discrimination)
-                feature_labels.append(col.split('_')[-2])
+                # Calculate discrimination potential only if we have valid data
+                try:
+                    genuine_mean = genuine_data.mean()
+                    deepfake_mean = deepfake_data.mean()
+                    genuine_var = genuine_data.var()
+                    deepfake_var = deepfake_data.var()
+                    
+                    # Check for valid statistics
+                    if not (np.isnan(genuine_mean) or np.isnan(deepfake_mean) or 
+                           np.isnan(genuine_var) or np.isnan(deepfake_var)):
+                        
+                        mean_diff = abs(genuine_mean - deepfake_mean)
+                        pooled_std = np.sqrt((genuine_var + deepfake_var) / 2)
+                        
+                        # Avoid division by zero
+                        if pooled_std > 0:
+                            discrimination = mean_diff / pooled_std
+                            discrimination_scores.append(discrimination)
+                            feature_labels.append(col.split('_')[-2])
+                        else:
+                            print(f"   ⚠️  Skipping {col}: zero variance")
+                    else:
+                        print(f"   ⚠️  Skipping {col}: invalid statistics")
+                except Exception as e:
+                    print(f"   ⚠️  Error calculating discrimination for {col}: {e}")
         
-        fig.add_trace(
-            go.Bar(
-                x=feature_labels,
-                y=discrimination_scores,
-                marker_color=['#e74c3c', '#2ecc71', '#f39c12', '#9b59b6'],
-                name='Discrimination Potential',
-                text=[f'{score:.3f}' for score in discrimination_scores],
-                textposition='outside',
-                hovertemplate="<b>%{x}</b><br>" +
-                            "Discrimination Score: %{y:.3f}<br>" +
-                            "Higher = Better Discriminator<br>" +
-                            "<extra></extra>",
-                showlegend=False
-            ),
-            row=4, col=2
-        )
+        # Only create the bar chart if we have discrimination scores
+        if discrimination_scores and feature_labels:
+            fig.add_trace(
+                go.Bar(
+                    x=feature_labels,
+                    y=discrimination_scores,
+                    marker_color=['#e74c3c', '#2ecc71', '#f39c12', '#9b59b6'][:len(discrimination_scores)],
+                    name='Discrimination Potential',
+                    text=[f'{score:.3f}' for score in discrimination_scores],
+                    textposition='outside',
+                    hovertemplate="<b>%{x}</b><br>" +
+                                "Discrimination Score: %{y:.3f}<br>" +
+                                "Higher = Better Discriminator<br>" +
+                                "<extra></extra>",
+                    showlegend=False
+                ),
+                row=4, col=2
+            )
+        else:
+            # Add placeholder if no discrimination scores available
+            fig.add_annotation(
+                text="Discrimination analysis<br>unavailable due to<br>insufficient valid data",
+                xref="x10", yref="y10",
+                x=0.5, y=0.5,
+                showarrow=False,
+                font=dict(size=12, color="orange"),
+                row=4, col=2
+            )
         
         # 12. Processing statistics
         if 'processing_time' in df.columns:
@@ -518,32 +689,52 @@ class AdvancedPhysicsPlotter:
             fig.layout.annotations[i].update(font=dict(size=13, color=self.colors['text']))
         
         # Add significance threshold line to statistical analysis (row 3, col 1)
-        fig.add_shape(
-            type="line",
-            x0=-0.5, x1=len(feature_names)-0.5,
-            y0=1.3, y1=1.3,
-            line=dict(color="red", width=2, dash="dash"),
-            row=3, col=1
-        )
+        if feature_names:  # Only add if we have feature names
+            fig.add_shape(
+                type="line",
+                x0=-0.5, x1=len(feature_names)-0.5,
+                y0=1.3, y1=1.3,
+                line=dict(color="red", width=2, dash="dash"),
+                row=3, col=1
+            )
+            
+            # Add annotation for significance threshold
+            fig.add_annotation(
+                x=0.5, y=1.35,
+                text="p = 0.05 threshold",
+                showarrow=False,
+                font=dict(size=10, color="red"),
+                xref="x7", yref="y7"  # Reference to subplot (3,1)
+            )
         
-        # Add annotation for significance threshold
-        fig.add_annotation(
-            x=0.5, y=1.35,
-            text="p = 0.05 threshold",
-            showarrow=False,
-            font=dict(size=10, color="red"),
-            xref="x7", yref="y7"  # Reference to subplot (3,1)
-        )
+        # Add PCA variance explanation only if PCA was successful
+        pca_successful = False
+        try:
+            # Check if PCA was performed and explained_variance is available
+            if len(physics_cols) >= 2 and 'explained_variance' in locals():
+                fig.add_annotation(
+                    x=0.5, y=0.35,
+                    text=f"PC1: {explained_variance[0]:.1%} variance<br>PC2: {explained_variance[1]:.1%} variance",
+                    showarrow=False,
+                    font=dict(size=10),
+                    bgcolor="rgba(255, 255, 255, 0.8)",
+                    bordercolor="gray",
+                    borderwidth=1,
+                    xref="paper", yref="paper"
+                )
+                pca_successful = True
+        except:
+            pass  # PCA explanation not available
         
-        # Add PCA variance explanation
-        if len(physics_cols) >= 2:
+        if not pca_successful and len(physics_cols) >= 2:
+            # Add a note that PCA analysis was not available
             fig.add_annotation(
                 x=0.5, y=0.35,
-                text=f"PC1: {explained_variance[0]:.1%} variance<br>PC2: {explained_variance[1]:.1%} variance",
+                text="PCA analysis: Data quality issues prevented variance calculation",
                 showarrow=False,
-                font=dict(size=10),
+                font=dict(size=10, color="orange"),
                 bgcolor="rgba(255, 255, 255, 0.8)",
-                bordercolor="gray",
+                bordercolor="orange",
                 borderwidth=1,
                 xref="paper", yref="paper"
             )
@@ -620,9 +811,9 @@ class AdvancedPhysicsPlotter:
                 significance = '***' if p_value < 0.001 else '**' if p_value < 0.01 else '*' if p_value < 0.05 else '†' if p_value < 0.1 else 'ns'
                 stats_text = f'p = {p_value:.4f} {significance}\nCohen\'s d = {effect_size:.3f}\nΔμ = {abs(genuine_data.mean() - deepfake_data.mean()):.4f}'
                 
-                ax.text(0.05, 0.95, stats_text, transform=ax.transAxes, 
-                       bbox=dict(boxstyle='round,pad=0.5', facecolor='white', alpha=0.8),
-                       verticalalignment='top', fontsize=10)
+                ax.text(0.02, 0.98, stats_text, transform=ax.transAxes, 
+                       bbox=dict(boxstyle='round,pad=0.5', facecolor='white', alpha=0.9),
+                       verticalalignment='top', fontsize=9, fontweight='bold')
             
             ax.set_title(f'{self.physics_features[col]["label"]}\n{self.physics_features[col]["interpretation"]}', 
                         fontsize=14, fontweight='bold')

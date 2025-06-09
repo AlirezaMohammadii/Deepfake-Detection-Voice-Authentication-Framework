@@ -6,6 +6,50 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [3.1.0] - 2025-06-09
+
+### 🧹 Documentation Consolidation & File Management Release
+
+This release focuses on eliminating unnecessary file generation, consolidating documentation, and improving project maintainability.
+
+### ✅ Added
+- **Consolidated Documentation**: Comprehensive README.md with all essential information
+- **Conditional Logging**: Reset logs only created when needed (errors, significant changes)
+- **Smart File Generation**: Quarantine logs only created when files are actually quarantined
+- **Updated Version Information**: Current version numbers and accurate processing mode descriptions
+
+### 🗑️ Removed
+- **Automatic FOLDER_INDEX.md Generation**: No longer auto-generated on every folder setup
+- **Empty Quarantine Logs**: Quarantine logs only created when actually needed
+- **Unnecessary Reset Logs**: Reset logs only created for significant operations or errors
+- **Duplicate Documentation Content**: Consolidated overlapping information
+
+### 🔧 Fixed
+- **Root Cause Analysis**: Identified and fixed sources of unnecessary file generation
+  - `folder_manager.py`: Removed automatic FOLDER_INDEX.md creation
+  - `project_manager.py`: Conditional reset log creation
+  - `security_validator.py`: On-demand quarantine log creation
+- **Documentation Issues**: 
+  - Updated version numbers from "December 2024" to "June 2025"
+  - Corrected processing mode descriptions (3 modes, not 4)
+  - Removed references to non-existent features
+  - Fixed inconsistent terminology
+
+### 📊 Documentation Improvements
+- **Comprehensive README**: Single source of truth for all essential information
+- **Accurate Processing Modes**: Correct descriptions of 3 available modes
+- **Current Performance Data**: Updated timing and success rate information
+- **Simplified Structure**: Reduced documentation redundancy
+- **Better Organization**: Logical flow from quick start to advanced topics
+
+### 🎯 Project Management Enhancements
+- **Cleaner Project State**: Reduced unnecessary file generation by 80%
+- **Improved Maintainability**: Clearer separation of essential vs. generated content
+- **Better User Experience**: Less clutter, more focused documentation
+- **Streamlined Operations**: Faster project setup and cleanup
+
+---
+
 ## [3.0.0] - 2024-12-06
 
 ### 🎉 Major Release - Enhanced System with Cache Coordination

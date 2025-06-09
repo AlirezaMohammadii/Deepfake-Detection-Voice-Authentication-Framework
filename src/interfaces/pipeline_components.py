@@ -35,13 +35,13 @@ class FeatureExtractor(ABC):
         Args:
             waveform: Input waveform tensor
             sr: Sample rate
-            
+        
         Returns:
             Tuple of (is_valid, error_message)
         """
         if not torch.is_tensor(waveform):
             return False, "Waveform must be a tensor"
-        
+            
         if waveform.numel() == 0:
             return False, "Waveform is empty"
         
@@ -56,4 +56,4 @@ class FeatureExtractor(ABC):
     
     def get_processing_modes(self) -> list:
         """Get list of available processing modes"""
-        return ["default", "lightweight", "high_accuracy"]
+        return ["default", "lightweight", "high_accuracy"] 

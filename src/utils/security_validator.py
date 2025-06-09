@@ -408,6 +408,15 @@ class ResourceLimiter:
         except Exception as e:
             logger.error(f"Error checking system resources: {e}")
             return {'error': str(e)}
+    
+    def get_current_usage(self) -> Dict[str, Any]:
+        """
+        Get current resource usage information (alias for check_system_resources).
+        
+        Returns:
+            Dictionary with current resource usage information
+        """
+        return self.check_system_resources()
 
 class InputValidator:
     """Comprehensive input validation for all data types"""

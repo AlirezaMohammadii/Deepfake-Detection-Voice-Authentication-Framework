@@ -16,7 +16,7 @@ def load_audio(file_path: str, target_sr: int = 16000, normalize: bool = True) -
         file_path: Path to audio file
         target_sr: Target sample rate (will resample if different)
         normalize: Whether to normalize the waveform
-        
+    
     Returns:
         Tuple of (waveform_tensor, sample_rate)
     """
@@ -70,7 +70,7 @@ def normalize_waveform(waveform: torch.Tensor, method: str = "peak") -> torch.Te
     Args:
         waveform: Input waveform tensor
         method: Normalization method ("peak", "rms", or "lufs")
-        
+    
     Returns:
         Normalized waveform tensor
     """
@@ -90,7 +90,7 @@ def normalize_waveform(waveform: torch.Tensor, method: str = "peak") -> torch.Te
         if rms > 0:
             return waveform / rms
         return waveform
-    
+
     else:
         # Default to peak normalization
         return normalize_waveform(waveform, "peak")
@@ -106,7 +106,7 @@ def segment_audio(waveform: torch.Tensor, sr: int,
         sr: Sample rate
         segment_length: Length of each segment in seconds
         overlap: Overlap between segments (0.0 to 1.0)
-        
+    
     Returns:
         List of audio segments
     """
@@ -136,7 +136,7 @@ def segment_audio(waveform: torch.Tensor, sr: int,
             padding = segment_samples - final_segment.shape[1]
             final_segment = torch.nn.functional.pad(final_segment, (0, padding))
         segments.append(final_segment.squeeze(0))
-    
+        
     return segments
 
 def resample_audio(waveform: torch.Tensor, orig_sr: int, target_sr: int) -> torch.Tensor:
@@ -147,7 +147,7 @@ def resample_audio(waveform: torch.Tensor, orig_sr: int, target_sr: int) -> torc
         waveform: Input waveform
         orig_sr: Original sample rate
         target_sr: Target sample rate
-        
+    
     Returns:
         Resampled waveform
     """
@@ -185,7 +185,7 @@ def apply_preemphasis(waveform: torch.Tensor, coeff: float = 0.97) -> torch.Tens
     """
     if waveform.numel() <= 1:
         return waveform
-    
+
     # Apply preemphasis: y[n] = x[n] - coeff * x[n-1]
     filtered = waveform.clone()
     filtered[1:] = waveform[1:] - coeff * waveform[:-1]
@@ -214,7 +214,7 @@ def detect_silence(waveform: torch.Tensor, threshold: float = 0.01,
         threshold: Silence threshold (relative to peak)
         min_duration: Minimum silence duration in seconds
         sr: Sample rate
-        
+    
     Returns:
         List of (start, end) sample indices for silent regions
     """

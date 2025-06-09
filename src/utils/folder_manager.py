@@ -76,57 +76,55 @@ class FolderManager:
     
     def setup_all_folders(self) -> Dict[str, Any]:
         """
-        Create and initialize all project folders with documentation.
+        Setup all project folders with comprehensive organization.
         
         Returns:
             Dictionary with setup results and statistics
         """
-        setup_stats = {
-            'folders_created': 0,
-            'subdirs_created': 0,
-            'files_created': 0,
-            'session_id': self.session_id,
-            'setup_time': datetime.now().isoformat()
-        }
-        
-        print("🗂️  Setting up project folder structure...")
+        folders_created = 0
+        subdirs_created = 0
+        files_created = 0
         
         for folder_name, config in self.folders.items():
             folder_path = config['path']
             
             # Create main folder
             if not folder_path.exists():
-                folder_path.mkdir(exist_ok=True)
-                setup_stats['folders_created'] += 1
-                print(f"   ✅ Created: {folder_name}/")
+                folder_path.mkdir(parents=True, exist_ok=True)
+                folders_created += 1
+                print(f"📁 Created: {folder_name}/")
             
             # Create subdirectories
             for subdir in config['subdirs']:
                 subdir_path = folder_path / subdir
                 if not subdir_path.exists():
-                    subdir_path.mkdir(exist_ok=True)
-                    setup_stats['subdirs_created'] += 1
-                    print(f"   📁 Created: {folder_name}/{subdir}/")
+                    subdir_path.mkdir(parents=True, exist_ok=True)
+                    subdirs_created += 1
             
-            # Create README file for folder documentation
+            # Create README only if specified and doesn't exist
             readme_path = folder_path / 'README.md'
-            if not readme_path.exists():
+            if not readme_path.exists() and folder_name in ['results', 'visualizations', 'quarantine']:
                 self._create_folder_readme(folder_name, config, readme_path)
-                setup_stats['files_created'] += 1
+                files_created += 1
             
-            # Auto-populate with sample/informational content if needed
+            # Populate folder if configured (only essential files)
             if config['auto_populate']:
-                populated_files = self._populate_folder(folder_name, config)
-                setup_stats['files_created'] += populated_files
+                files_created += self._populate_folder(folder_name, config)
         
-        # Create master folder index
-        self._create_folder_index(setup_stats)
-        setup_stats['files_created'] += 1
+        setup_stats = {
+            'folders_created': folders_created,
+            'subdirs_created': subdirs_created,
+            'files_created': files_created,
+            'session_id': self.session_id,
+            'timestamp': datetime.now().isoformat()
+        }
         
-        print(f"✅ Folder setup complete!")
-        print(f"   📁 Folders: {setup_stats['folders_created']} created")
-        print(f"   📂 Subdirs: {setup_stats['subdirs_created']} created") 
-        print(f"   📄 Files: {setup_stats['files_created']} created")
+        # Only create folder index if specifically requested (removed automatic creation)
+        print("🗂️  Setting up project folder structure...")
+        print("✅ Folder setup complete!")
+        print(f"   📁 Folders: {folders_created} created")
+        print(f"   📂 Subdirs: {subdirs_created} created")
+        print(f"   📄 Files: {files_created} created")
         
         return setup_stats
     
@@ -372,20 +370,12 @@ The subdirectories (hubert/, features/, processing/) are reserved for:
                 files_created += 1
         
         elif folder_name == 'quarantine':
-            # Create quarantine log
+            # Create quarantine log directory
             quarantine_log_dir = folder_path / 'logs'
             quarantine_log_dir.mkdir(exist_ok=True)
             
-            quarantine_log = quarantine_log_dir / f'quarantine_log_{self.session_id}.txt'
-            if not quarantine_log.exists():
-                with open(quarantine_log, 'w') as f:
-                    f.write(f"QUARANTINE LOG - Session {self.session_id}\n")
-                    f.write("="*50 + "\n")
-                    f.write(f"Created: {datetime.now().isoformat()}\n")
-                    f.write("Purpose: Log of quarantined files and security events\n\n")
-                    f.write("Format: [TIMESTAMP] - [SEVERITY] - [FILE] - [REASON]\n")
-                    f.write("="*50 + "\n\n")
-                files_created += 1
+            # Only create quarantine log when files are actually quarantined (removed automatic creation)
+            # The quarantine log will be created by security_validator.py when needed
         
         elif folder_name == 'cache':
             # Create cache organization documentation for subdirectories
@@ -462,88 +452,6 @@ Session ID: {self.session_id}
                 files_created += 1
         
         return files_created
-    
-    def _create_folder_index(self, setup_stats: Dict[str, Any]):
-        """Create master index of all folders and their purposes."""
-        index_file = self.project_root / 'FOLDER_INDEX.md'
-        
-        content = f"""# Project Folder Structure Index
-
-**Generated:** {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}  
-**Session ID:** {self.session_id}
-
-## Overview
-This document provides a comprehensive overview of the project folder structure and the purpose of each directory.
-
-## Folder Structure
-
-```
-physics_feature_test_project/
-├── 📁 data/                    # Input audio files organized by user
-├── 📁 src/                     # Source code modules
-├── 📁 results/                 # Analysis results and outputs
-├── 📁 checkpoints/             # Processing checkpoints for recovery
-├── 📁 logs/                    # Comprehensive system logging
-├── 📁 output/                  # Analysis reports and summaries
-├── 📁 plots/                   # Statistical plots and visualizations
-├── 📁 quarantine/              # Quarantined suspicious files
-├── 📁 visualizations/          # Enhanced interactive visualizations
-├── 📁 cache/                   # Cached model outputs
-├── 📁 venv/                    # Python virtual environment
-├── 📄 test_runner.py           # Main execution script
-└── 📄 requirements.txt         # Python dependencies
-```
-
-## Detailed Folder Descriptions
-
-"""
-        
-        for folder_name, config in self.folders.items():
-            content += f"### 📁 {folder_name}/\n"
-            content += f"**Purpose:** {config['description']}\n\n"
-            
-            if config['subdirs']:
-                content += "**Subdirectories:**\n"
-                for subdir in config['subdirs']:
-                    content += f"- `{subdir}/`\n"
-                content += "\n"
-            
-            content += f"**Auto-populated:** {'Yes' if config['auto_populate'] else 'No'}\n\n"
-        
-        content += f"""## Usage Guidelines
-
-### For Researchers
-- Check `results/` for CSV analysis outputs
-- Review `plots/` for statistical visualizations  
-- Examine `output/` for comprehensive reports
-
-### For Developers
-- Monitor `logs/` for debugging information
-- Use `checkpoints/` for recovery from interruptions
-- Check `quarantine/` for security validation issues
-
-### For System Administrators
-- Review `logs/system/` for operational status
-- Monitor `cache/` for storage usage
-- Check `quarantine/logs/` for security events
-
-## Setup Statistics
-- Folders created: {setup_stats['folders_created']}
-- Subdirectories created: {setup_stats['subdirs_created']}
-- Documentation files created: {setup_stats['files_created']}
-
-## Maintenance
-- Logs are retained for 30 days
-- Checkpoints are cleared on successful completion
-- Cache files are managed automatically
-- Quarantine files require manual review
-
-## Last Updated
-{datetime.now().strftime("%Y-%m-%d %H:%M:%S")} (Session: {self.session_id})
-"""
-        
-        with open(index_file, 'w', encoding='utf-8') as f:
-            f.write(content)
     
     def cleanup_empty_folders(self) -> Dict[str, List[str]]:
         """

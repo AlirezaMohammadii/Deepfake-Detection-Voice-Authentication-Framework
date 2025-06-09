@@ -11,13 +11,13 @@ def create_standard_pipeline(enable_cache: bool = True,
                            enable_bayesian: bool = True) -> ComprehensiveFeatureExtractor:
     """
     Create a standard processing pipeline with full features
-    
-    Args:
+        
+        Args:
         enable_cache: Whether to enable feature caching
         cache_dir: Directory for cache files
         enable_bayesian: Whether to enable Bayesian analysis
-        
-    Returns:
+            
+        Returns:
         Configured ComprehensiveFeatureExtractor
     """
     return FeatureExtractorFactory.create(
