@@ -1,1 +1,388 @@
-# Physics-Based Deepfake Detection System\n\n**Version:** 3.1.0  \n**Last Updated:** June 2025  \n**A comprehensive system for detecting AI-generated speech using physics-inspired dynamics analysis**\n\n[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)\n[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)\n[![Status: Production Ready](https://img.shields.io/badge/Status-Production%20Ready-green.svg)](#)\n\n## 🎯 Overview\n\nThis system analyzes audio files to distinguish between genuine human speech and AI-generated deepfakes using the **VoiceRadar** framework - a novel physics-inspired approach that treats neural embeddings as dynamic systems.\n\n### Key Features\n- **🔬 VoiceRadar Physics**: Translational, rotational, and vibrational dynamics analysis\n- **🧠 Neural Embeddings**: HuBERT-based feature extraction with physics interpretation\n- **⚡ Multi-Mode Processing**: 3 optimized processing modes for different use cases\n- **🛡️ Production-Ready**: Enterprise-grade robustness with 99.5% reliability\n- **📊 Advanced Analytics**: Interactive visualizations and statistical analysis\n- **🔄 Smart Caching**: Intelligent model and feature caching for efficiency\n\n### Research Validation\n- **Statistical Significance**: Physics features show significant discrimination (p<0.05)\n- **Primary Discriminator**: Rotational dynamics (+2.8% higher in TTS deepfakes)\n- **Processing Success**: 100% success rate across 40+ test samples\n- **Performance**: 0.97-2.0s average processing time per file\n\n---\n\n## 🚀 Quick Start\n\n### 1. Installation\n```bash\n# Clone repository\ngit clone <repository-url>\ncd physics_feature_test_project\n\n# Create and activate virtual environment\npython -m venv venv\n\n# Windows:\nvenv\\Scripts\\activate\n# macOS/Linux:\nsource venv/bin/activate\n\n# Install dependencies\npip install -r requirements.txt\n```\n\n### 2. Data Preparation\nOrganize audio files in the `data/` directory:\n```\ndata/\n├── user_01/\n│   ├── user01_genuine_001.wav\n│   ├── user01_deepfake_tts_001.wav\n│   └── ...\n├── user_02/\n│   ├── user02_genuine_001.wav\n│   └── ...\n└── ...\n```\n\n**Supported Formats**: WAV, MP3, FLAC, M4A  \n**Requirements**: Minimum 1 second duration, maximum 200MB per file\n\n### 3. Run Analysis\n```bash\n# Interactive mode (recommended)\npython test_runner.py\n\n# Quick mode selection\necho \"1\" | python test_runner.py  # Enhanced Pipeline\necho \"2\" | python test_runner.py  # Lightweight Pipeline  \necho \"3\" | python test_runner.py  # Bayesian-Enhanced Pipeline\n```\n\n### 4. View Results\n- **📊 CSV Results**: `results/physics_features_summary.csv`\n- **🎨 Interactive Dashboard**: `visualizations/interactive/comprehensive_dashboard.html`\n- **📈 Static Plots**: `visualizations/static/*.png`\n- **📋 Analysis Reports**: `visualizations/reports/`\n\n---\n\n## 🎛️ Processing Modes\n\n### Mode 1: Enhanced Pipeline Processing ⭐ **Recommended**\n- **Best for**: Most use cases (50-200 files)\n- **Features**: Comprehensive validation, error recovery, batch optimization\n- **Performance**: ~2.0s per file, 100% success rate\n- **Memory**: 4-6GB usage\n\n### Mode 2: Lightweight Pipeline\n- **Best for**: Quick testing, resource-constrained environments\n- **Features**: Essential features only, faster processing\n- **Performance**: ~0.97s per file, optimized for speed\n- **Memory**: 2-3GB usage\n\n### Mode 3: Bayesian-Enhanced Pipeline\n- **Best for**: Research, comprehensive analysis\n- **Features**: Probabilistic analysis, uncertainty quantification, causal analysis\n- **Performance**: ~1.09s per file, most comprehensive output\n- **Memory**: 4-8GB usage\n\n---\n\n## 🔬 Scientific Methodology\n\n### VoiceRadar Physics Framework\n\nThe system treats neural embeddings as a physics system where audio authenticity creates distinct dynamic signatures:\n\n#### Core Physics Features\n\n**🔄 Translational Dynamics (Δf_t)**\n```\nΔf_t = ||∇E_centroid||₂ / T\n```\n- **Interpretation**: Overall drift in embedding space\n- **Discrimination**: Low (minimal difference between genuine and TTS)\n\n**🌀 Rotational Dynamics (Δf_r)** - **Primary Discriminator**\n```\nΔf_r = ||∇θ_principal||₂ / T\n```\n- **Interpretation**: Rotation of principal components\n- **Discrimination**: **Highest** (+2.8% in TTS, p<0.05)\n\n**📳 Vibrational Dynamics (Δf_v)**\n```\nΔf_v = σ(||E(t+1) - E(t)||₂) / T\n```\n- **Interpretation**: High-frequency oscillations\n- **Discrimination**: Moderate (high variability)\n\n**🎯 Total Dynamics (Δf_total)**\n```\nΔf_total = √(Δf_t² + Δf_r² + Δf_v²)\n```\n- **Interpretation**: Combined dynamic signature\n- **Discrimination**: Good composite measure\n\n### Neural Architecture\n- **Model**: HuBERT (Hidden-Unit BERT) - 12 layers, 768 dimensions\n- **Training**: Pre-trained on LibriSpeech (960 hours)\n- **Output**: Contextualized speech representations\n- **Integration**: Serves as \"radar screen\" for physics analysis\n\n---\n\n## 📊 System Architecture\n\n### Core Components\n```\nAudio Input → HuBERT Embeddings → VoiceRadar Physics → Feature Analysis → Results\n```\n\n### Processing Pipeline\n```python\nclass ProcessingPipeline:\n    ├── AudioLoadingStage          # Enhanced audio loading with validation\n    ├── PreprocessingStage         # Configurable normalization\n    ├── FeatureExtractionStage     # Robust extraction with retry\n    ├── ValidationStage            # Comprehensive validation\n    └── ResultAggregationStage     # Structured result formatting\n```\n\n### Security & Validation\n```python\nclass SecurityValidator:\n    ├── Format Verification        # Comprehensive format validation\n    ├── Content Validation         # Malformed data detection\n    ├── Path Protection           # Security against malicious paths\n    └── Quarantine System         # Isolation of suspicious files\n```\n\n---\n\n## 🛠️ Project Management\n\n### Setup and Maintenance\n```bash\npython project_manager.py\n```\n\n**Available Options:**\n1. **📊 Analyze Project**: Comprehensive project state analysis\n2. **🧹 Safe Cleanup**: Remove cache and temporary files\n3. **🎯 Precise Reset**: Complete project reset (preserves source code)\n4. **🚪 Exit**\n\n### Fresh Start\nTo return the project to a clean state:\n```bash\npython project_manager.py\n# Choose option 3 - Precise Project Reset\n# Removes all generated files and caches\n# Preserves source code and configuration\n```\n\n---\n\n## 📈 Performance & Requirements\n\n### System Requirements\n- **Python**: 3.8+ (3.10+ recommended)\n- **RAM**: 8GB minimum, 16GB+ recommended\n- **Storage**: 10GB free space for models and cache\n- **CPU**: Multi-core processor (Intel i5/AMD Ryzen 5+)\n- **GPU**: Optional but recommended (CUDA-compatible)\n\n### Performance Characteristics\n| Mode | Speed | Memory | Use Case |\n|------|-------|--------|---------|\n| Enhanced | ~2.0s/file | 4-6GB | General use (recommended) |\n| Lightweight | ~0.97s/file | 2-3GB | Quick testing |\n| Bayesian | ~1.09s/file | 4-8GB | Research analysis |\n\n### Dataset Size Guidelines\n- **Small (<50 files)**: Any mode\n- **Medium (50-200 files)**: Enhanced Pipeline (Mode 1)\n- **Large (200+ files)**: Enhanced or Bayesian Pipeline\n- **Resource-constrained**: Lightweight Pipeline (Mode 2)\n\n---\n\n## 🚨 Troubleshooting\n\n### Common Issues\n\n**Import Errors**\n```bash\n# Verify installation\npython -c \"import torch; print(f'PyTorch: {torch.__version__}')\"\npython -c \"import transformers; print('HuggingFace: OK')\"\n```\n\n**Model Download Issues**\n```bash\n# Clear cache and retry\npython project_manager.py  # Option 2 - Safe cleanup\npython test_runner.py\n```\n\n**Memory Issues**\n```bash\n# Use lightweight mode\necho \"2\" | python test_runner.py\n```\n\n**Processing Failures**\n- Check `results/error_log.txt` for detailed error information\n- Review `logs/` directory for component-specific logs\n- Use project manager to analyze and clean project state\n\n### Recovery from Interruptions\nThe system automatically creates checkpoints during processing:\n```bash\npython test_runner.py\n# When prompted: \"Resume from checkpoint? (y/n): y\"\n```\n\n---\n\n## 📚 Documentation Structure\n\n- **README.md** (this file) - Complete user and technical guide\n- **CHANGELOG.md** - Version history and updates\n- **TECHNICAL_REFERENCE.md** - Detailed technical documentation\n- **USER_GUIDE.md** - Comprehensive usage instructions\n- **BAYESIAN_NETWORKS_GUIDE.md** - Bayesian analysis documentation\n- **LICENSE** - MIT License terms\n\n---\n\n## 🔬 Research & Development\n\n### Academic Contributions\n- **Methodological Innovation**: Physics-inspired embedding analysis\n- **Performance Validation**: Statistically significant discrimination\n- **Production Implementation**: Enterprise-grade system with 99.5% reliability\n- **Open Source**: Complete reproducible research implementation\n\n### Key Research Findings\n1. **Rotational dynamics** are the most discriminative feature for TTS detection\n2. **Physics-based approach** provides interpretable and robust detection\n3. **Real-time processing** is achievable with optimized implementation\n4. **Statistical significance** achieved with relatively small datasets\n\n### Future Research Directions\n- Extension to other deepfake types (voice conversion, singing voice synthesis)\n- Real-time streaming analysis implementation\n- Multi-language and cross-linguistic validation\n- Integration with other audio authenticity methods\n\n---\n\n## 📄 License\n\nThis project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.\n\n---\n\n## 🤝 Contributing\n\nContributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.\n\n---\n\n## 📞 Support\n\nFor questions, issues, or research collaboration:\n- **Issues**: Use GitHub Issues for bug reports and feature requests\n- **Documentation**: Check the comprehensive guides in the `docs/` section\n- **Research**: Contact for academic collaboration and research questions\n\n---\n\n**🎯 Ready to detect deepfakes with physics? Start with `python test_runner.py`!**
+# Physics-Based Deepfake Detection System
+
+**Version:** 3.1.0
+**Last Updated:** June 2025
+
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![Status: Production Ready](https://img.shields.io/badge/Status-Production%20Ready-green.svg)](#)
+
+---
+
+## Table of Contents
+
+1. [Overview](#overview)
+2. [Quick Start](#quick-start)
+
+   1. [Installation](#installation)
+   2. [Data Preparation](#data-preparation)
+   3. [Run Analysis](#run-analysis)
+   4. [View Results](#view-results)
+3. [Processing Modes](#processing-modes)
+4. [Scientific Methodology](#scientific-methodology)
+
+   1. [VoiceRadar Physics Framework](#voiceradar-physics-framework)
+   2. [Core Physics Features](#core-physics-features)
+   3. [Neural Architecture](#neural-architecture)
+5. [System Architecture](#system-architecture)
+6. [Project Management](#project-management)
+7. [Performance & Requirements](#performance--requirements)
+8. [Troubleshooting](#troubleshooting)
+9. [Documentation Structure](#documentation-structure)
+10. [Research & Development](#research--development)
+
+    1. [Academic Contributions](#academic-contributions)
+    2. [Key Research Findings](#key-research-findings)
+    3. [Future Research Directions](#future-research-directions)
+11. [License](#license)
+12. [Contributing](#contributing)
+13. [Support](#support)
+
+---
+
+## Overview
+
+A comprehensive system for detecting AI-generated speech using physics-inspired dynamics analysis. The **VoiceRadar** framework interprets neural embeddings as dynamic systems to distinguish genuine human speech from deepfakes.
+
+### Key Features
+
+* **VoiceRadar Physics**: Translational, rotational, and vibrational dynamics analysis.
+* **Neural Embeddings**: HuBERT-based feature extraction with physics interpretation.
+* **Multi-Mode Processing**: Three optimized pipelines for varied use cases.
+* **Production-Ready**: Enterprise-grade robustness with 99.5% reliability.
+* **Advanced Analytics**: Interactive visualizations and statistical analysis.
+* **Smart Caching**: Intelligent model and feature caching for efficiency.
+
+### Research Validation
+
+* **Statistical Significance**: Physics features show significant discrimination (p < 0.05).
+* **Primary Discriminator**: Rotational dynamics (+2.8% higher in TTS deepfakes).
+* **Processing Success**: 100% success rate across 40+ test samples.
+* **Performance**: 0.97–2.0 s average processing time per file.
+
+---
+
+## Quick Start
+
+### Installation
+
+```bash
+# Clone repository
+git clone <repository-url>
+cd physics_feature_test_project
+
+# Create and activate virtual environment
+python -m venv venv
+
+# Windows:
+venv\Scripts\activate
+# macOS/Linux:
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+### Data Preparation
+
+Organize audio files under `data/`:
+
+```
+data/
+├── user_01/
+│   ├── user01_genuine_001.wav
+│   ├── user01_deepfake_tts_001.wav
+│   └── ...
+├── user_02/
+│   ├── user02_genuine_001.wav
+│   └── ...
+└── ...
+```
+
+* **Supported Formats**: WAV, MP3, FLAC, M4A
+* **Requirements**: Minimum 1 second duration; maximum 200 MB per file
+
+### Run Analysis
+
+```bash
+# Interactive mode (recommended)
+python test_runner.py
+
+# Quick mode selection
+echo "1" | python test_runner.py  # Enhanced Pipeline
+echo "2" | python test_runner.py  # Lightweight Pipeline
+echo "3" | python test_runner.py  # Bayesian-Enhanced Pipeline
+```
+
+### View Results
+
+* **CSV Results**: `results/physics_features_summary.csv`
+* **Interactive Dashboard**: `visualizations/interactive/comprehensive_dashboard.html`
+* **Static Plots**: `visualizations/static/*.png`
+* **Analysis Reports**: `visualizations/reports/`
+
+---
+
+## Processing Modes
+
+### Mode 1: Enhanced Pipeline Processing ⭐ **Recommended**
+
+* **Best for**: Most use cases (50–200 files)
+* **Features**: Comprehensive validation, error recovery, batch optimization
+* **Performance**: \~2.0 s per file; 100% success rate
+* **Memory**: 4–6 GB usage
+
+### Mode 2: Lightweight Pipeline
+
+* **Best for**: Quick testing, resource-constrained environments
+* **Features**: Essential features only; faster processing
+* **Performance**: \~0.97 s per file
+* **Memory**: 2–3 GB usage
+
+### Mode 3: Bayesian-Enhanced Pipeline
+
+* **Best for**: Research and comprehensive analysis
+* **Features**: Probabilistic analysis, uncertainty quantification, causal analysis
+* **Performance**: \~1.09 s per file
+* **Memory**: 4–8 GB usage
+
+---
+
+## Scientific Methodology
+
+### VoiceRadar Physics Framework
+
+The system treats neural embeddings as a physics system where audio authenticity produces distinct dynamic signatures.
+
+#### Core Physics Features
+
+* **Translational Dynamics (Δf\_t)**
+
+  ```text
+  Δf_t = ‖∇E_centroid‖₂ / T
+  ```
+
+  * **Interpretation**: Overall drift in embedding space
+  * **Discrimination**: Low (minimal difference between genuine and TTS)
+
+* **Rotational Dynamics (Δf\_r)** – **Primary Discriminator**
+
+  ```text
+  Δf_r = ‖∇θ_principal‖₂ / T
+  ```
+
+  * **Interpretation**: Rotation of principal components
+  * **Discrimination**: Highest (+2.8% in TTS, p < 0.05)
+
+* **Vibrational Dynamics (Δf\_v)**
+
+  ```text
+  Δf_v = σ(‖E(t+1) − E(t)‖₂) / T
+  ```
+
+  * **Interpretation**: High-frequency oscillations
+  * **Discrimination**: Moderate (high variability)
+
+* **Total Dynamics (Δf\_total)**
+
+  ```text
+  Δf_total = √(Δf_t² + Δf_r² + Δf_v²)
+  ```
+
+  * **Interpretation**: Combined dynamic signature
+  * **Discrimination**: Good composite measure
+
+### Neural Architecture
+
+* **Model**: HuBERT (Hidden-Unit BERT) – 12 layers, 768 dimensions
+* **Training**: Pre-trained on LibriSpeech (960 hours)
+* **Output**: Contextualized speech representations
+* **Integration**: Serves as “radar screen” for physics analysis
+
+---
+
+## System Architecture
+
+```
+Audio Input → HuBERT Embeddings → VoiceRadar Physics → Feature Analysis → Results
+```
+
+### Processing Pipeline
+
+```python
+class ProcessingPipeline:
+    ├── AudioLoadingStage      # Enhanced audio loading with validation
+    ├── PreprocessingStage     # Configurable normalization
+    ├── FeatureExtractionStage # Robust extraction with retry
+    ├── ValidationStage        # Comprehensive validation
+    └── ResultAggregationStage # Structured result formatting
+```
+
+### Security & Validation
+
+```python
+class SecurityValidator:
+    ├── Format Verification    # Comprehensive format validation
+    ├── Content Validation     # Malformed data detection
+    ├── Path Protection        # Security against malicious paths
+    └── Quarantine System      # Isolation of suspicious files
+```
+
+---
+
+## Project Management
+
+Run project maintenance and state analysis:
+
+```bash
+python project_manager.py
+```
+
+**Available Options:**
+
+1. **Analyze Project**: Comprehensive project state analysis
+2. **Safe Cleanup**: Remove cache and temporary files
+3. **Precise Reset**: Complete project reset (preserves source code)
+4. **Exit**
+
+### Fresh Start
+
+To reset the project while preserving source code:
+
+```bash
+python project_manager.py
+# Choose option 3 - Precise Project Reset
+# Removes all generated files and caches
+# Preserves source code and configuration
+```
+
+---
+
+## Performance & Requirements
+
+### System Requirements
+
+* **Python**: 3.8+ (3.10+ recommended)
+* **RAM**: 8 GB minimum; 16 GB+ recommended
+* **Storage**: 10 GB free space for models and cache
+* **CPU**: Multi-core processor (Intel i5/AMD Ryzen 5+)
+* **GPU**: Optional but recommended (CUDA-compatible)
+
+### Performance Characteristics
+
+| Mode        | Speed         | Memory | Use Case                  |
+| ----------- | ------------- | ------ | ------------------------- |
+| Enhanced    | \~2.0 s/file  | 4–6 GB | General use (recommended) |
+| Lightweight | \~0.97 s/file | 2–3 GB | Quick testing             |
+| Bayesian    | \~1.09 s/file | 4–8 GB | Research analysis         |
+
+### Dataset Size Guidelines
+
+* **Small (<50 files)**: Any mode
+* **Medium (50–200 files)**: Enhanced Pipeline (Mode 1)
+* **Large (200+ files)**: Enhanced or Bayesian Pipeline
+* **Resource-constrained**: Lightweight Pipeline (Mode 2)
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+* **Import Errors**
+
+  ```bash
+  # Verify installation
+  python -c "import torch; print(f'PyTorch: {torch.__version__}')"
+  python -c "import transformers; print('HuggingFace: OK')"
+  ```
+
+* **Model Download Issues**
+
+  ```bash
+  # Clear cache and retry
+  python project_manager.py  # Option 2 - Safe Cleanup
+  python test_runner.py
+  ```
+
+* **Memory Issues**
+
+  ```bash
+  # Use lightweight mode
+  echo "2" | python test_runner.py
+  ```
+
+* **Processing Failures**
+
+  * Check `results/error_log.txt` for detailed error information.
+  * Review `logs/` directory for component-specific logs.
+  * Use project manager to analyze and clean project state.
+
+### Recovery from Interruptions
+
+The system automatically creates checkpoints during processing:
+
+```bash
+python test_runner.py
+# When prompted: "Resume from checkpoint? (y/n): y"
+```
+
+---
+
+## Documentation Structure
+
+* **README.md** (this file) – Complete user and technical guide
+* **CHANGELOG.md** – Version history and updates
+* **TECHNICAL\_REFERENCE.md** – Detailed technical documentation
+* **USER\_GUIDE.md** – Comprehensive usage instructions
+* **BAYESIAN\_NETWORKS\_GUIDE.md** – Bayesian analysis documentation
+* **LICENSE** – MIT License terms
+
+---
+
+## Research & Development
+
+### Academic Contributions
+
+* **Methodological Innovation**: Physics-inspired embedding analysis.
+* **Performance Validation**: Statistically significant discrimination.
+* **Production Implementation**: Enterprise-grade system with 99.5% reliability.
+* **Open Source**: Complete reproducible research implementation.
+
+### Key Research Findings
+
+1. **Rotational dynamics** are the most discriminative feature for TTS detection.
+2. **Physics-based approach** provides interpretable and robust detection.
+3. **Real-time processing** is achievable with optimized implementation.
+4. **Statistical significance** achieved with relatively small datasets.
+
+### Future Research Directions
+
+* Extend to other deepfake types (voice conversion, singing voice synthesis).
+* Real-time streaming analysis implementation.
+* Multi-language and cross-linguistic validation.
+* Integration with other audio authenticity methods.
+
+---
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+---
+
+## Contributing
+
+Contributions are welcome! Please submit a Pull Request. For major changes, open an issue first to discuss the proposal.
+
+---
+
+## Support
+
+For questions, issues, or research collaboration:
+
+* **Issues**: Use GitHub Issues for bug reports and feature requests.
+* **Documentation**: Refer to guides in the `docs/` section.
+* **Research**: Contact for academic collaboration and research questions.
+
+---
+
+**🎯 Ready to detect deepfakes with physics? Start with `python test_runner.py`!**
