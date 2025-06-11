@@ -25,9 +25,9 @@ class ProjectLogger:
     
     def __init__(self, project_root: str = "."):
         self.project_root = Path(project_root)
+        self.session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.setup_directories()
         self.setup_logging()
-        self.session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
         
     def setup_directories(self):
         """Create and setup all logging directories."""
@@ -130,6 +130,7 @@ class ProjectLogger:
         
         # Create detailed session log in sessions subdirectory
         session_log_file = self.dirs['logs'] / 'sessions' / f'session_{self.session_id}.log'
+        session_log_file.parent.mkdir(exist_ok=True)  # Ensure sessions directory exists
         with open(session_log_file, 'w') as f:
             f.write(f"PHYSICS FEATURES ANALYSIS SESSION LOG\n")
             f.write("=" * 50 + "\n")

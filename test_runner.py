@@ -1443,8 +1443,7 @@ async def main():
     if create_project_logger:
         try:
             project_logger = create_project_logger(
-                logs_dir=os.path.join(current_dir, "logs"),
-                session_name="physics_features_extraction"
+                project_root=current_dir
             )
             print("✓ Comprehensive logging system initialized")
         except Exception as e:

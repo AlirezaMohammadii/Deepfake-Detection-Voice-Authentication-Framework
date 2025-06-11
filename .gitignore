@@ -1,5 +1,3 @@
-# Create .gitignore file
-@"
 # Python
 __pycache__/
 *.py[cod]
@@ -48,6 +46,8 @@ plots/*.png
 plots/*.html
 quarantine/
 checkpoints/
+data/
+precise_reset_log_*.json
 
 # Large model files (if any)
 *.bin
@@ -62,4 +62,3 @@ models/
 
 # Environment variables
 .env
-"@ | Out-File -FilePath .gitignore -Encoding UTF8

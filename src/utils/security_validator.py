@@ -84,9 +84,12 @@ class SecureAudioLoader:
             except (OSError, RuntimeError) as e:
                 raise ValueError(f"Invalid symbolic link: {e}")
         
-        # Path traversal protection
+        # Path traversal protection - check for actual traversal attempts
         if not self.config.allow_path_traversal:
-            if ".." in str(filepath) or str(filepath).startswith("/"):
+            # Only flag actual traversal attempts (relative paths with ..)
+            # Allow absolute paths which are normal for legitimate files
+            path_str = str(filepath)
+            if "../" in path_str or "/.." in path_str or path_str.endswith(".."):
                 raise ValueError(f"Path traversal detected in: {filepath}")
         
         # Path length validation
